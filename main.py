@@ -9,7 +9,8 @@ from app.database.crud import obtener_resumen_prestador, guardar_registros_diari
 from app.services.procesador_excel import procesar_reporte_asistencia
 from app.database.db_config import inicializar_bd, obtener_conexion
 from pydantic import BaseModel
-from app.database.crud import actualizar_estatus_dia
+from app.database.crud import actualizar_estatus_dia, guardar_registros_historicos, eliminar_prestador
+from app.services.migrador_historico import procesar_seguimiento_historico
 
 # Aseguramos que la BD exista y tenga a nuestro sujeto de prueba
 inicializar_bd()
@@ -141,3 +142,36 @@ def obtener_analitica():
         "departamentos": [{"depto": r["departamento"], "total": r["total"]} for r in depto_data],
         "estatus": [{"estado": r["estatus"], "total": r["count"]} for r in estatus_data]
     }
+
+@app.post("/api/migrar-historico")
+async def migrar_historico(file: UploadFile = File(...)):
+    ruta = f"data/{file.filename}"
+    with open(ruta, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    datos = procesar_seguimiento_historico(ruta)
+
+    registrados = 0
+    for p in datos["prestadores"]:
+        ok = registrar_prestador(
+            p["id_checador"], p["nombre"], p["departamento"],
+            "2026-01-01", "2026-07-01", 480
+        )
+        if ok:
+            registrados += 1
+
+    guardar_registros_historicos(datos["registros"])
+
+    return {
+        "mensaje": "Migración completada",
+        "prestadores_nuevos": registrados,
+        "registros_insertados": len(datos["registros"])
+    }
+
+
+@app.delete("/api/prestadores/{id_checador}")
+async def dar_de_baja(id_checador: int):
+    exito = eliminar_prestador(id_checador)
+    if not exito:
+        raise HTTPException(status_code=404, detail="Prestador no encontrado o error al eliminar")
+    return {"mensaje": f"Prestador {id_checador} dado de baja exitosamente"}

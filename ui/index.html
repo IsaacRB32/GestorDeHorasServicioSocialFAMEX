@@ -23,9 +23,19 @@
             <h2 class="text-2xl font-bold text-gray-800 mb-6">Cargar Reporte de Asistencia</h2>
             
             <div class="bg-white p-6 rounded-xl shadow-md mb-8 border-l-4 border-blue-500">
+                <p class="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Reporte diario de checador</p>
                 <input type="file" id="archivoExcel" accept=".xlsx" class="mb-4 block w-full text-sm text-gray-500"/>
                 <button onclick="subirExcel()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg transition shadow-md shadow-blue-200">Procesar Archivo</button>
                 <p id="uploadStatus" class="mt-3 text-sm"></p>
+            </div>
+
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Migrar Datos Históricos</h2>
+            <div class="bg-white p-6 rounded-xl shadow-md mb-8 border-l-4 border-amber-500">
+                <p class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Formato legado (seguimiento.xlsx — hoja "SS 2026")</p>
+                <p class="text-xs text-gray-500 mb-4">Registra en masa a todos los prestadores y su historial mensual. Usa INSERT OR REPLACE, es seguro ejecutarlo múltiples veces.</p>
+                <input type="file" id="archivoHistorico" accept=".xlsx" class="mb-4 block w-full text-sm text-gray-500"/>
+                <button onclick="migrarHistorico()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-6 rounded-lg transition shadow-md shadow-amber-200">Migrar Histórico</button>
+                <p id="migracionStatus" class="mt-3 text-sm"></p>
             </div>
 
             <h2 class="text-2xl font-bold text-gray-800 mb-6">Estado de Prestadores</h2>
@@ -46,5 +56,29 @@
         </main>
     </div>
     <script src="js/app.js"></script>
+    <script>
+    async function migrarHistorico() {
+        const input = document.getElementById('archivoHistorico');
+        const status = document.getElementById('migracionStatus');
+        if (!input.files.length) {
+            status.innerText = 'Selecciona el archivo seguimiento.xlsx primero.';
+            status.className = 'mt-3 text-sm font-medium text-red-600';
+            return;
+        }
+        const fd = new FormData();
+        fd.append('file', input.files[0]);
+        status.innerText = 'Migrando datos históricos...';
+        status.className = 'mt-3 text-sm font-medium text-blue-600';
+        try {
+            const res = await fetch('/api/migrar-historico', { method: 'POST', body: fd });
+            const r = await res.json();
+            status.innerText = `✓ ${r.prestadores_nuevos} prestadores nuevos · ${r.registros_insertados} registros insertados`;
+            status.className = 'mt-3 text-sm font-medium text-green-600';
+        } catch (e) {
+            status.innerText = 'Error durante la migración.';
+            status.className = 'mt-3 text-sm font-medium text-red-600';
+        }
+    }
+    </script>
 </body>
-</html>
+</html> 

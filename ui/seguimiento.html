@@ -48,33 +48,102 @@
         </main>
     </div>
 
-    <div id="modalEdicion" class="fixed inset-0 bg-slate-900 bg-opacity-60 hidden flex justify-center items-center z-50 backdrop-blur-sm transition-opacity">
-        <div class="bg-white rounded-2xl shadow-2xl p-6 w-96 transform scale-100 transition-transform">
+    <div id="modalEdicion" class="fixed inset-0 bg-slate-900 bg-opacity-60 hidden flex justify-center items-center z-50 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-[460px] max-w-[95vw]">
+
             <div class="flex justify-between items-center mb-5">
                 <h3 class="text-xl font-black text-gray-800" id="modalTitulo">Editar Día</h3>
-                <button onclick="cerrarModal()" class="text-gray-400 hover:text-red-500 font-bold text-xl">&times;</button>
+                <button onclick="cerrarModal()" class="text-gray-400 hover:text-red-500 font-bold text-2xl leading-none">&times;</button>
             </div>
-            
+
             <input type="hidden" id="modalId">
             <input type="hidden" id="modalFecha">
 
-            <div class="mb-4">
-                <label class="block text-sm font-bold text-gray-700 mb-2">Horas Trabajadas</label>
-                <input type="number" step="0.1" id="modalHoras" class="border border-gray-300 p-3 rounded-lg w-full focus:ring-2 focus:ring-blue-500 font-bold text-lg text-gray-800 bg-gray-50">
+            <!-- Tabs principales -->
+            <div class="grid grid-cols-3 gap-2 mb-5">
+                <button id="tabFalta" onclick="seleccionarTab('Falta')"
+                    class="py-2.5 px-2 rounded-xl text-sm font-black border-2 transition-all">
+                    ✗ Falta
+                </button>
+                <button id="tabJustificante" onclick="seleccionarTab('Justificante')"
+                    class="py-2.5 px-2 rounded-xl text-sm font-black border-2 transition-all">
+                    📋 Justificante
+                </button>
+                <button id="tabHoras" onclick="seleccionarTab('Horas')"
+                    class="py-2.5 px-2 rounded-xl text-sm font-black border-2 transition-all">
+                    ⏱ Agregar Horas
+                </button>
             </div>
 
-            <div class="mb-6">
-                <label class="block text-sm font-bold text-gray-700 mb-2">Estatus del Día</label>
-                <select id="modalEstatus" class="p-3 rounded-lg w-full font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 border appearance-none cursor-pointer transition-colors" onchange="cambiarColorSelect()">
-                    <option value="Asistencia">Asistencia (Horas Normales)</option>
-                    <option value="Falta">Falta Injustificada</option>
-                    <option value="Justificante">Justificante / Permiso</option>
-                </select>
+            <!-- Panel: Falta -->
+            <div id="panelFalta" class="mb-5 hidden">
+                <div class="bg-red-50 border-2 border-red-200 rounded-xl p-5 text-center">
+                    <div class="text-3xl mb-2">✗</div>
+                    <p class="font-black text-red-700">Falta Injustificada</p>
+                    <p class="text-xs text-red-400 mt-1">Se guardarán 0 horas para este día</p>
+                </div>
             </div>
 
-            <div class="flex justify-end space-x-3 mt-8">
-                <button onclick="cerrarModal()" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-bold transition">Cancelar</button>
-                <button onclick="guardarEdicion()" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-lg shadow-blue-200 transition transform hover:-translate-y-0.5">Guardar Cambios</button>
+            <!-- Panel: Justificante -->
+            <div id="panelJustificante" class="mb-5 hidden">
+                <div class="bg-amber-50 border-2 border-amber-200 rounded-xl p-5 text-center">
+                    <div class="text-3xl mb-2">📋</div>
+                    <p class="font-black text-amber-700">Justificante / Permiso</p>
+                    <p class="text-xs text-amber-400 mt-1">Se guardarán 0 horas para este día</p>
+                </div>
+            </div>
+
+            <!-- Panel: Agregar Horas -->
+            <div id="panelHoras" class="mb-5 hidden">
+                <div class="flex gap-2 mb-4">
+                    <label id="labelManual" class="flex-1 flex items-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all">
+                        <input type="radio" name="metodoCaptura" value="manual" onchange="seleccionarMetodo('manual')">
+                        <span class="text-sm font-bold">Ingreso Manual</span>
+                    </label>
+                    <label id="labelRango" class="flex-1 flex items-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all">
+                        <input type="radio" name="metodoCaptura" value="rango" onchange="seleccionarMetodo('rango')">
+                        <span class="text-sm font-bold">Rango de Tiempo</span>
+                    </label>
+                </div>
+
+                <!-- Sub-panel: Manual -->
+                <div id="subManual">
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Horas Trabajadas</label>
+                    <input type="number" id="inputManualHoras" step="0.5" min="0" max="24"
+                        class="border-2 border-gray-200 focus:border-blue-500 p-3 rounded-xl w-full font-black text-2xl text-center text-gray-800 bg-gray-50 focus:outline-none transition-colors">
+                </div>
+
+                <!-- Sub-panel: Rango -->
+                <div id="subRango" class="hidden">
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Hora de Inicio</label>
+                            <input type="time" id="inputInicio" oninput="calcularRango()"
+                                class="border-2 border-gray-200 focus:border-blue-500 p-3 rounded-xl w-full font-bold text-gray-800 bg-gray-50 focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Hora de Fin</label>
+                            <input type="time" id="inputFin" oninput="calcularRango()"
+                                class="border-2 border-gray-200 focus:border-blue-500 p-3 rounded-xl w-full font-bold text-gray-800 bg-gray-50 focus:outline-none transition-colors">
+                        </div>
+                    </div>
+                    <div id="resultadoCalculo" class="hidden bg-blue-50 border-2 border-blue-200 rounded-xl p-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-500">Exacto: <span id="horasExactas" class="font-bold text-gray-700">0</span> h</span>
+                            <span class="text-blue-400 font-black">→</span>
+                            <span class="text-sm text-gray-500">Redondeado: <span id="horasRedondeadas" class="font-black text-blue-700 text-xl">0</span> h</span>
+                        </div>
+                        <p class="text-center text-xs text-blue-400 mt-1" id="reglaAplicada"></p>
+                    </div>
+                    <div id="errorRango" class="hidden bg-red-50 border border-red-200 rounded-xl p-2 text-center text-xs text-red-600 font-bold mt-1">
+                        La hora de fin debe ser posterior a la de inicio
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-4 border-t border-gray-100">
+                <button onclick="cerrarModal()" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-bold transition">Cancelar</button>
+                <button onclick="guardarEdicion()" class="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold shadow-lg shadow-blue-200 transition transform hover:-translate-y-0.5">Guardar Cambios</button>
             </div>
         </div>
     </div>
@@ -164,8 +233,13 @@
                             <h3 class="text-lg font-black text-gray-800 leading-tight">${prestador.nombre}</h3>
                             <p class="text-xs text-gray-500 font-medium mt-0.5">ID Checador: ${prestador.id}</p>
                         </div>
-                        <div class="text-right">
+                        <div class="text-right flex flex-col items-end gap-2">
                             <div class="text-3xl font-black text-gray-800">${prestador.horas_totales}<span class="text-sm font-medium text-gray-400 ml-1">/ 480h</span></div>
+                            ${prestador.horas_totales >= 480 ? `
+                            <button onclick="darDeBaja(${prestador.id}, '${prestador.nombre.replace(/'/g, "\\'")}')"
+                                    class="bg-red-600 hover:bg-red-700 text-white text-xs font-black px-3 py-1.5 rounded-lg shadow-md shadow-red-200 transition transform hover:-translate-y-0.5 flex items-center gap-1">
+                                <span>✓</span> Dar de Baja
+                            </button>` : ''}
                         </div>
                     </div>
 
@@ -221,56 +295,140 @@
             });
         }
 
+        // --- Estado del modal ---
+        let tabActual = 'Falta';
+        let metodoActual = 'manual';
+
+        const TAB_CFG = {
+            Falta:        { active: 'bg-red-600 text-white border-red-600 shadow-md shadow-red-200',   inactive: 'bg-white text-red-400 border-red-200 hover:bg-red-50' },
+            Justificante: { active: 'bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-200', inactive: 'bg-white text-amber-400 border-amber-200 hover:bg-amber-50' },
+            Horas:        { active: 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200',  inactive: 'bg-white text-blue-400 border-blue-200 hover:bg-blue-50' }
+        };
+
+        function seleccionarTab(tab) {
+            tabActual = tab;
+            ['Falta', 'Justificante', 'Horas'].forEach(t => {
+                const btn = document.getElementById(`tab${t}`);
+                const panel = document.getElementById(`panel${t}`);
+                const esActivo = t === tab;
+                btn.className = `py-2.5 px-2 rounded-xl text-sm font-black border-2 transition-all ${esActivo ? TAB_CFG[t].active : TAB_CFG[t].inactive}`;
+                panel.classList.toggle('hidden', !esActivo);
+            });
+            if (tab === 'Horas') seleccionarMetodo(metodoActual);
+        }
+
+        function seleccionarMetodo(metodo) {
+            metodoActual = metodo;
+            const esManual = metodo === 'manual';
+            const BASE = 'flex-1 flex items-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all ';
+            document.getElementById('labelManual').className = BASE + (esManual  ? 'bg-blue-50 border-blue-400 text-blue-700' : 'bg-white border-gray-200 text-gray-500');
+            document.getElementById('labelRango').className  = BASE + (!esManual ? 'bg-blue-50 border-blue-400 text-blue-700' : 'bg-white border-gray-200 text-gray-500');
+            document.getElementById('subManual').classList.toggle('hidden', !esManual);
+            document.getElementById('subRango').classList.toggle('hidden',  esManual);
+        }
+
+        function redondearHoras(horas) {
+            const entero  = Math.floor(horas);
+            const decimal = horas - entero;
+            if (Math.abs(decimal - 0.5) < 1e-9) return entero + 0.5; // exactamente 0.5
+            if (decimal < 0.5) return entero;                          // < 0.5 → piso
+            return entero + 1;                                          // > 0.5 → techo
+        }
+
+        function calcularRango() {
+            const vInicio = document.getElementById('inputInicio').value;
+            const vFin    = document.getElementById('inputFin').value;
+            const divRes  = document.getElementById('resultadoCalculo');
+            const divErr  = document.getElementById('errorRango');
+
+            if (!vInicio || !vFin) { divRes.classList.add('hidden'); divErr.classList.add('hidden'); return; }
+
+            const [hI, mI] = vInicio.split(':').map(Number);
+            const [hF, mF] = vFin.split(':').map(Number);
+            const minutos  = (hF * 60 + mF) - (hI * 60 + mI);
+
+            if (minutos <= 0) {
+                divRes.classList.add('hidden');
+                divErr.classList.remove('hidden');
+                return;
+            }
+            divErr.classList.add('hidden');
+
+            const exactas     = minutos / 60;
+            const redondeadas = redondearHoras(exactas);
+            const decimal     = exactas - Math.floor(exactas);
+
+            let regla = decimal < 0.5
+                ? `${decimal.toFixed(2)} < 0.5 → redondeo hacia abajo`
+                : Math.abs(decimal - 0.5) < 1e-9
+                    ? `Decimal exactamente 0.5 → se mantiene`
+                    : `${decimal.toFixed(2)} > 0.5 → redondeo hacia arriba`;
+
+            document.getElementById('horasExactas').innerText    = exactas.toFixed(2);
+            document.getElementById('horasRedondeadas').innerText = redondeadas;
+            document.getElementById('reglaAplicada').innerText    = regla;
+            divRes.classList.remove('hidden');
+        }
+
         function abrirEdicion(id, fechaExacta) {
             document.getElementById('modalEdicion').classList.remove('hidden');
-            
-            let f = new Date(fechaExacta + 'T12:00:00'); 
+
+            const f = new Date(fechaExacta + 'T12:00:00');
             document.getElementById('modalTitulo').innerText = `${f.getDate()} de ${mesesNombres[f.getMonth()]}`;
-            
-            document.getElementById('modalId').value = id;
+            document.getElementById('modalId').value    = id;
             document.getElementById('modalFecha').value = fechaExacta;
 
-            // FIX: Forzar la búsqueda por ID de forma numérica para evitar fallos de tipo de dato
-            let prestador = datosGlobales.find(p => parseInt(p.id) === parseInt(id));
-            let registro = prestador ? prestador.registros.find(r => r.fecha === fechaExacta) : null;
+            // Limpiar entradas de rango
+            document.getElementById('inputInicio').value = '';
+            document.getElementById('inputFin').value    = '';
+            document.getElementById('resultadoCalculo').classList.add('hidden');
+            document.getElementById('errorRango').classList.add('hidden');
 
-            let inputHoras = document.getElementById('modalHoras');
-            let selectEstatus = document.getElementById('modalEstatus');
+            // Resetear método a manual
+            metodoActual = 'manual';
+            document.querySelector('input[name="metodoCaptura"][value="manual"]').checked = true;
 
-            if (registro) {
-                inputHoras.value = registro.horas;
-                selectEstatus.value = registro.estatus;
+            const prestador = datosGlobales.find(p => parseInt(p.id) === parseInt(id));
+            const registro  = prestador ? prestador.registros.find(r => r.fecha === fechaExacta) : null;
+
+            if (registro?.estatus === 'Falta') {
+                seleccionarTab('Falta');
+            } else if (registro?.estatus === 'Justificante') {
+                seleccionarTab('Justificante');
             } else {
-                inputHoras.value = 0;
-                selectEstatus.value = 'Falta';
+                seleccionarTab('Horas');
+                document.getElementById('inputManualHoras').value = registro ? registro.horas : 0;
             }
-            
-            cambiarColorSelect();
         }
 
         function cerrarModal() {
             document.getElementById('modalEdicion').classList.add('hidden');
         }
 
-        function cambiarColorSelect() {
-            let select = document.getElementById('modalEstatus');
-            let baseClasses = "p-3 rounded-lg w-full font-bold focus:outline-none focus:ring-2 border appearance-none cursor-pointer transition-colors ";
-            
-            if(select.value === 'Falta') {
-                select.className = baseClasses + "bg-red-50 text-red-700 border-red-300 focus:ring-red-500";
-            } else if(select.value === 'Justificante') {
-                select.className = baseClasses + "bg-yellow-50 text-yellow-700 border-yellow-300 focus:ring-yellow-500";
-            } else {
-                select.className = baseClasses + "bg-green-50 text-green-700 border-green-300 focus:ring-green-500";
-            }
-        }
-
         async function guardarEdicion() {
+            let horas = 0, estatus = 'Asistencia';
+
+            if (tabActual === 'Falta') {
+                estatus = 'Falta';
+            } else if (tabActual === 'Justificante') {
+                estatus = 'Justificante';
+            } else {
+                if (metodoActual === 'manual') {
+                    horas = parseFloat(document.getElementById('inputManualHoras').value) || 0;
+                } else {
+                    const resultadoVisible = !document.getElementById('resultadoCalculo').classList.contains('hidden');
+                    if (!resultadoVisible) {
+                        alert('Ingresa las horas de inicio y fin para calcular el rango.');
+                        return;
+                    }
+                    horas = parseFloat(document.getElementById('horasRedondeadas').innerText) || 0;
+                }
+            }
+
             const data = {
                 id_checador: parseInt(document.getElementById('modalId').value),
-                fecha: document.getElementById('modalFecha').value,
-                horas: parseFloat(document.getElementById('modalHoras').value),
-                estatus: document.getElementById('modalEstatus').value
+                fecha:       document.getElementById('modalFecha').value,
+                horas, estatus
             };
 
             try {
@@ -279,14 +437,26 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
-                
-                if(res.ok) {
-                    cerrarModal();
-                    cargarSeguimiento(); 
+                if (res.ok) { cerrarModal(); cargarSeguimiento(); }
+            } catch (e) {
+                console.error('Error al guardar:', e);
+                alert('Hubo un error al guardar los cambios.');
+            }
+        }
+
+    async function darDeBaja(id, nombre) {
+            if (!confirm(`¿Confirmas dar de baja a ${nombre}?\n\nEsta acción eliminará al prestador y TODOS sus registros del sistema. No se puede deshacer.`)) return;
+            try {
+                const res = await fetch(`/api/prestadores/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    alert(`${nombre} fue dado de baja exitosamente.`);
+                    cargarSeguimiento();
+                } else {
+                    const err = await res.json();
+                    alert(`Error: ${err.detail}`);
                 }
-            } catch (error) {
-                console.error("Error al guardar en la BD:", error);
-                alert("Hubo un error al guardar los cambios.");
+            } catch (e) {
+                alert('Error de conexión al dar de baja.');
             }
         }
 

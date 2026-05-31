@@ -54,6 +54,36 @@ def obtener_resumen_prestador(id_checador):
     conn.close()
     return dict(res) if res else None
 
+# --- MIGRACIÓN HISTÓRICA: inserción con estatus explícito ---
+def guardar_registros_historicos(lista_registros):
+    conn = obtener_conexion()
+    cursor = conn.cursor()
+    for reg in lista_registros:
+        cursor.execute('''
+            INSERT OR REPLACE INTO registros
+                (id_checador, fecha, hora_entrada, hora_salida, horas_trabajadas, estatus)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (reg['id_checador'], reg['fecha'], reg.get('entrada'), reg.get('salida'),
+              reg['horas'], reg.get('estatus', 'Asistencia')))
+    conn.commit()
+    conn.close()
+
+# --- TAREA 2: Eliminación por Cumplimiento ---
+def eliminar_prestador(id_checador):
+    conn = obtener_conexion()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM registros WHERE id_checador = ?", (id_checador,))
+        cursor.execute("DELETE FROM justificaciones WHERE id_checador = ?", (id_checador,))
+        cursor.execute("DELETE FROM prestadores WHERE id_checador = ?", (id_checador,))
+        conn.commit()
+        return True
+    except Exception:
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
 # --- REQUERIMIENTO 5: Edición de Calendario Mensual ---
 def actualizar_estatus_dia(id_checador, fecha, nuevas_horas, nuevo_estatus):
     """Permite editar un día específico desde el calendario interactivo"""
