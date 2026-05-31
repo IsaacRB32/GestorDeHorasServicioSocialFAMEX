@@ -1,5 +1,15 @@
 import pandas as pd
 from datetime import datetime
+import math
+
+def redondear_horas(horas):
+    entero  = math.floor(horas)
+    decimal = horas - entero
+    if abs(decimal - 0.5) < 1e-9:
+        return entero + 0.5
+    if decimal < 0.5:
+        return float(entero)
+    return float(entero + 1)
 
 def procesar_reporte_asistencia(ruta_excel):
     df = pd.read_excel(ruta_excel, sheet_name='Registros de asistencia', header=None)
@@ -51,7 +61,8 @@ def procesar_reporte_asistencia(ruta_excel):
                         try:
                             t_ent = datetime.strptime(entrada, "%H:%M")
                             t_sal = datetime.strptime(salida, "%H:%M")
-                            horas = round((t_sal - t_ent).total_seconds() / 3600.0, 2)
+                            horas_exactas = (t_sal - t_ent).total_seconds() / 3600.0
+                            horas = redondear_horas(horas_exactas)
                         except ValueError:
                             pass
                     elif len(partes) == 1:

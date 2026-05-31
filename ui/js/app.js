@@ -37,27 +37,31 @@ async function subirExcel() {
     statusText.innerText = 'Procesando archivo, por favor espera...';
     statusText.className = 'mt-3 text-sm font-medium text-blue-600';
 
+    let result;
     try {
         const response = await fetch('/api/upload-reporte', { method: 'POST', body: formData });
-        const result = await response.json();
-
-        statusText.innerText = `¡Reporte cargado con éxito! Se guardaron ${result.procesados} registros en la base de datos.`;
-        statusText.className = 'mt-3 text-sm font-medium text-green-600';
-
-        // Si el backend envía los datos para el PDF, guardarlos y mostrar el botón
-        if (result.tabla_pdf && result.tabla_pdf.length > 0) {
-            tablaPDFData = result.tabla_pdf;
-            const btn = document.getElementById('btnDescargarPDF');
-            btn.classList.remove('hidden');
-            btn.classList.add('flex');
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.detail || `Error del servidor (${response.status})`);
         }
-
-        // Actualizamos la tabla del dashboard automáticamente
-        cargarTablaEstado();
+        result = await response.json();
     } catch (error) {
-        statusText.innerText = 'Hubo un error al procesar el archivo.';
+        statusText.innerText = `Error al procesar: ${error.message}`;
         statusText.className = 'mt-3 text-sm font-medium text-red-600';
+        return;
     }
+
+    statusText.innerText = `¡Reporte cargado con éxito! Se guardaron ${result.procesados} registros.`;
+    statusText.className = 'mt-3 text-sm font-medium text-green-600';
+
+    tablaPDFData = (result.tabla_pdf && result.tabla_pdf.length > 0) ? result.tabla_pdf : null;
+
+    // Mostrar botón siempre que haya procesado algo — usa style inline para ganar sobre cualquier clase CSS
+    if (result.procesados > 0) {
+        document.getElementById('btnDescargarPDF').style.display = 'flex';
+    }
+
+    cargarTablaEstado();
 }
 
 function redondearHoras(horas) {
@@ -68,8 +72,29 @@ function redondearHoras(horas) {
     return entero + 1;
 }
 
-function generarPDF() {
-    if (!tablaPDFData || tablaPDFData.length === 0) return;
+async function generarPDF() {
+    let datos = tablaPDFData;
+
+    // Fallback: si no hay datos del upload, los pedimos al servidor
+    if (!datos || datos.length === 0) {
+        try {
+            const res = await fetch('/api/seguimiento-datos');
+            const prestadores = await res.json();
+            datos = prestadores.map(p => ({
+                id: p.id,
+                nombre: p.nombre,
+                registros: p.registros.filter(r => r.horas > 0).map(r => ({ fecha: r.fecha, horas: r.horas }))
+            })).filter(p => p.registros.length > 0);
+        } catch(e) {
+            alert('No hay datos disponibles para generar el PDF.');
+            return;
+        }
+    }
+
+    if (!datos || datos.length === 0) {
+        alert('No hay registros de horas para generar el PDF.');
+        return;
+    }
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -77,10 +102,9 @@ function generarPDF() {
 
     // Fechas únicas ordenadas presentes en el reporte
     const fechas = [...new Set(
-        tablaPDFData.flatMap(p => p.registros.map(r => r.fecha))
+        datos.flatMap(p => p.registros.map(r => r.fecha))
     )].sort();
 
-    // Encabezados: por cada fecha, columna Real y columna Redondeado
     const diaHeaders = fechas.flatMap(f => {
         const d   = new Date(f + 'T12:00:00');
         const lbl = `${DIAS[d.getDay()]} ${d.getDate()}/${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -88,8 +112,7 @@ function generarPDF() {
     });
     const head = [['ID', 'NOMBRE', ...diaHeaders, 'TOTAL\nSEMANAL']];
 
-    // Filas
-    const body = tablaPDFData.map(p => {
+        const body = datos.map(p => {
         const row = [p.id, p.nombre];
         let total = 0;
         fechas.forEach(f => {
