@@ -53,3 +53,21 @@ def obtener_resumen_prestador(id_checador):
     res = cursor.fetchone()
     conn.close()
     return dict(res) if res else None
+
+# --- REQUERIMIENTO 5: Edición de Calendario Mensual ---
+def actualizar_estatus_dia(id_checador, fecha, nuevas_horas, nuevo_estatus):
+    """Permite editar un día específico desde el calendario interactivo"""
+    conn = obtener_conexion()
+    cursor = conn.cursor()
+    
+    # Usamos INSERT OR REPLACE por si el día estaba en blanco (no existía en la BD)
+    cursor.execute('''
+        INSERT OR REPLACE INTO registros (id_checador, fecha, horas_trabajadas, estatus)
+        VALUES (
+            ?, ?, ?, ?
+        )
+    ''', (id_checador, fecha, nuevas_horas, nuevo_estatus))
+    
+    conn.commit()
+    conn.close()
+    return True

@@ -44,8 +44,9 @@ def inicializar_bd():
             hora_salida TEXT,
             horas_trabajadas REAL DEFAULT 0.0,
             requiere_revision BOOLEAN DEFAULT 0,
+            estatus TEXT DEFAULT 'Asistencia', -- NUEVA COLUMNA
             FOREIGN KEY(id_checador) REFERENCES prestadores(id_checador),
-            UNIQUE(id_checador, fecha) -- Evita duplicar el mismo día para la misma persona
+            UNIQUE(id_checador, fecha) 
         )
     ''')
 
