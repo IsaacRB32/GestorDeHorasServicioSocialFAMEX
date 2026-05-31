@@ -33,8 +33,22 @@ async def upload_reporte(file: UploadFile = File(...)):
         
     # 2. Guardamos sus horas
     guardar_registros_diarios(datos["registros"])
-    
-    return {"mensaje": "Éxito", "procesados": len(datos["registros"])}
+
+    # 3. Construir tabla_pdf agrupada por prestador para el cliente
+    nombre_map = {p["id_checador"]: p["nombre"] for p in datos["prestadores"]}
+    grupos: dict = {}
+    for reg in datos["registros"]:
+        pid = reg["id_checador"]
+        if pid not in grupos:
+            grupos[pid] = []
+        grupos[pid].append({"fecha": reg["fecha"], "horas": reg["horas"]})
+
+    tabla_pdf = [
+        {"id": pid, "nombre": nombre_map.get(pid, f"ID {pid}"), "registros": regs}
+        for pid, regs in grupos.items()
+    ]
+
+    return {"mensaje": "Éxito", "procesados": len(datos["registros"]), "tabla_pdf": tabla_pdf}
 
 # Endpoint del Dashboard
 @app.get("/api/dashboard/{id_prestador}")
