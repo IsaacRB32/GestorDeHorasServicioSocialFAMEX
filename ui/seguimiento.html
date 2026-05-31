@@ -11,16 +11,16 @@
         <aside class="w-64 bg-slate-900 text-white p-6 shadow-xl z-10">
             <h1 class="text-xl font-bold mb-10 tracking-wider">FAMEX <span class="text-blue-400">Control</span></h1>
             <nav class="space-y-2">
-                <a href="index.html" class="block py-2.5 px-4 rounded transition hover:bg-slate-700">Dashboard</a>
+                <a href="index.html" class="block py-2.5 px-4 rounded transition hover:bg-slate-700">Panel de Carga</a>
                 <a href="prestadores.html" class="block py-2.5 px-4 rounded transition hover:bg-slate-700">Directorio</a>
                 <a href="#" class="block py-2.5 px-4 rounded bg-blue-600 font-semibold shadow">Expedientes</a>
-            </nav>
+                <a href="analitica.html" class="block py-2.5 px-4 rounded transition hover:bg-slate-700">Analítica Global</a> </nav>
         </aside>
 
         <main class="flex-1 p-8 overflow-y-auto">
             <div class="bg-white p-5 rounded-xl shadow-sm mb-8 border border-gray-100 flex flex-col xl:flex-row justify-between items-center gap-4">
                 <div>
-                    <h2 class="text-2xl font-bold text-gray-800">Seguimiento Mensual</h2>
+                    <h2 class="text-2xl font-bold text-gray-800">Seguimiento Meso-Mensual</h2>
                     <p class="text-sm text-gray-500 mt-1">Gestión de horas, faltas y justificaciones</p>
                 </div>
                 
@@ -44,13 +44,43 @@
             </div>
 
             <div id="contenedorTarjetas" class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                </div>
+            </div>
         </main>
+    </div>
+
+    <div id="modalEdicion" class="fixed inset-0 bg-slate-900 bg-opacity-60 hidden flex justify-center items-center z-50 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-96 transform scale-100 transition-transform">
+            <div class="flex justify-between items-center mb-5">
+                <h3 class="text-xl font-black text-gray-800" id="modalTitulo">Editar Día</h3>
+                <button onclick="cerrarModal()" class="text-gray-400 hover:text-red-500 font-bold text-xl">&times;</button>
+            </div>
+            
+            <input type="hidden" id="modalId">
+            <input type="hidden" id="modalFecha">
+
+            <div class="mb-4">
+                <label class="block text-sm font-bold text-gray-700 mb-2">Horas Trabajadas</label>
+                <input type="number" step="0.1" id="modalHoras" class="border border-gray-300 p-3 rounded-lg w-full focus:ring-2 focus:ring-blue-500 font-bold text-lg text-gray-800 bg-gray-50">
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-bold text-gray-700 mb-2">Estatus del Día</label>
+                <select id="modalEstatus" class="p-3 rounded-lg w-full font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 border appearance-none cursor-pointer transition-colors" onchange="cambiarColorSelect()">
+                    <option value="Asistencia">Asistencia (Horas Normales)</option>
+                    <option value="Falta">Falta Injustificada</option>
+                    <option value="Justificante">Justificante / Permiso</option>
+                </select>
+            </div>
+
+            <div class="flex justify-end space-x-3 mt-8">
+                <button onclick="cerrarModal()" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-bold transition">Cancelar</button>
+                <button onclick="guardarEdicion()" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-lg shadow-blue-200 transition transform hover:-translate-y-0.5">Guardar Cambios</button>
+            </div>
+        </div>
     </div>
 
     <script>
         let datosGlobales = [];
-        // Iniciamos en Mayo 2026 (mes 4 en JavaScript porque Enero es 0)
         let fechaActual = new Date(2026, 4, 1); 
         const mesesNombres = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
@@ -69,49 +99,38 @@
             let year = fechaActual.getFullYear();
             let month = fechaActual.getMonth();
             
-            // Actualizar etiqueta del mes
             document.getElementById('labelMesActual').innerText = `${mesesNombres[month]} ${year}`;
             
             const contenedor = document.getElementById('contenedorTarjetas');
             contenedor.innerHTML = "";
 
-            // Lógica para construir un calendario real
-            let primerDiaDelMes = new Date(year, month, 1).getDay(); // 0:Dom, 1:Lun, 2:Mar...
+            let primerDiaDelMes = new Date(year, month, 1).getDay();
             let diasEnElMes = new Date(year, month + 1, 0).getDate();
             
-            // Ajustar para que el Lunes sea la primera columna
             let offset = primerDiaDelMes === 0 ? 6 : primerDiaDelMes - 1;
 
             datosGlobales.forEach(prestador => {
                 let diasHtml = "";
-                
-                // 1. Celdas vacías antes del día 1 (si el mes no empieza en lunes)
-                // Si el 1ero cae en Sábado (5) o Domingo (6), no ponemos huecos en la semana laboral.
                 let huecosLaborales = offset > 4 ? 0 : offset; 
                 for(let i=0; i < huecosLaborales; i++) {
                     diasHtml += `<div class="bg-gray-100 border-b border-r border-gray-200 opacity-40 h-16"></div>`;
                 }
 
-                // 2. Días reales del mes
                 for(let dia = 1; dia <= diasEnElMes; dia++) {
                     let fechaBucle = new Date(year, month, dia);
                     let diaSemana = fechaBucle.getDay();
                     
-                    // Saltamos Sábados (6) y Domingos (0)
                     if (diaSemana === 0 || diaSemana === 6) continue;
 
-                    // Formato de fecha para cruzar con la base de datos (YYYY-MM-DD)
                     let mesStr = String(month + 1).padStart(2, '0');
                     let diaStr = String(dia).padStart(2, '0');
                     let fechaISO = `${year}-${mesStr}-${diaStr}`;
                     
-                    // Buscamos si el prestador tiene un registro ese día exacto
                     let registro = prestador.registros.find(r => r.fecha === fechaISO);
                     
                     let horas = registro ? registro.horas : 0;
                     let estatus = registro ? registro.estatus : 'Vacio';
                     
-                    // Estilos base
                     let bgClass = "bg-white hover:bg-gray-50 text-gray-300";
                     let textHtml = `<span class="text-lg">-</span>`;
 
@@ -137,7 +156,6 @@
 
                 let porcentaje = Math.min((prestador.horas_totales / 480) * 100, 100).toFixed(1);
 
-                // Armado de tarjeta
                 let tarjeta = `
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden prestador-card" data-depto="${prestador.departamento}" data-nombre="${prestador.nombre.toLowerCase()}">
                     <div class="p-5 border-b border-gray-100 bg-slate-50 flex justify-between items-center">
@@ -185,7 +203,6 @@
                 contenedor.innerHTML += tarjeta;
             });
             
-            // Reaplicar filtros por si cambiamos de mes teniendo un filtro activo
             aplicarFiltros(); 
         }
 
@@ -204,34 +221,30 @@
             });
         }
 
-        // --- LÓGICA DEL MODAL DE EDICIÓN ---
         function abrirEdicion(id, fechaExacta) {
             document.getElementById('modalEdicion').classList.remove('hidden');
             
-            // Damos formato a la fecha para el título (ej: 18 de Mayo)
-            let f = new Date(fechaExacta + 'T12:00:00'); // T12 previene desajustes de zona horaria
+            let f = new Date(fechaExacta + 'T12:00:00'); 
             document.getElementById('modalTitulo').innerText = `${f.getDate()} de ${mesesNombres[f.getMonth()]}`;
             
             document.getElementById('modalId').value = id;
             document.getElementById('modalFecha').value = fechaExacta;
 
-            let prestador = datosGlobales.find(p => p.id === id);
-            let registro = prestador.registros.find(r => r.fecha === fechaExacta);
+            // FIX: Forzar la búsqueda por ID de forma numérica para evitar fallos de tipo de dato
+            let prestador = datosGlobales.find(p => parseInt(p.id) === parseInt(id));
+            let registro = prestador ? prestador.registros.find(r => r.fecha === fechaExacta) : null;
 
             let inputHoras = document.getElementById('modalHoras');
             let selectEstatus = document.getElementById('modalEstatus');
 
             if (registro) {
-                // Si ya había registro, cargamos sus datos
                 inputHoras.value = registro.horas;
                 selectEstatus.value = registro.estatus;
             } else {
-                // REGLA DE NEGOCIO: Día vacío = Falta automática
                 inputHoras.value = 0;
                 selectEstatus.value = 'Falta';
             }
             
-            // Pintar el select del color correcto
             cambiarColorSelect();
         }
 
@@ -241,7 +254,6 @@
 
         function cambiarColorSelect() {
             let select = document.getElementById('modalEstatus');
-            // Clases base
             let baseClasses = "p-3 rounded-lg w-full font-bold focus:outline-none focus:ring-2 border appearance-none cursor-pointer transition-colors ";
             
             if(select.value === 'Falta') {
@@ -262,7 +274,6 @@
             };
 
             try {
-                // Bloquear el botón mientras guarda
                 const res = await fetch('/api/actualizar-dia', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -271,7 +282,7 @@
                 
                 if(res.ok) {
                     cerrarModal();
-                    cargarSeguimiento(); // Vuelve a descargar los datos y redibuja el Muro
+                    cargarSeguimiento(); 
                 }
             } catch (error) {
                 console.error("Error al guardar en la BD:", error);
@@ -279,38 +290,7 @@
             }
         }
 
-        // Cargar al iniciar
         cargarSeguimiento();
     </script>
-    <div id="modalEdicion" class="fixed inset-0 bg-slate-900 bg-opacity-60 hidden flex justify-center items-center z-50 backdrop-blur-sm transition-opacity">
-        <div class="bg-white rounded-2xl shadow-2xl p-6 w-96 transform scale-100 transition-transform">
-            <div class="flex justify-between items-center mb-5">
-                <h3 class="text-xl font-black text-gray-800" id="modalTitulo">Editar Día</h3>
-                <button onclick="cerrarModal()" class="text-gray-400 hover:text-red-500 font-bold text-xl">&times;</button>
-            </div>
-            
-            <input type="hidden" id="modalId">
-            <input type="hidden" id="modalFecha">
-
-            <div class="mb-4">
-                <label class="block text-sm font-bold text-gray-700 mb-2">Horas Trabajadas</label>
-                <input type="number" step="0.1" id="modalHoras" class="border border-gray-300 p-3 rounded-lg w-full focus:ring-2 focus:ring-blue-500 font-bold text-lg text-gray-800 bg-gray-50">
-            </div>
-
-            <div class="mb-6">
-                <label class="block text-sm font-bold text-gray-700 mb-2">Estatus del Día</label>
-                <select id="modalEstatus" class="p-3 rounded-lg w-full font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 border appearance-none cursor-pointer transition-colors" onchange="cambiarColorSelect()">
-                    <option value="Asistencia">Asistencia (Horas Normales)</option>
-                    <option value="Falta">Falta Injustificada</option>
-                    <option value="Justificante">Justificante / Permiso</option>
-                </select>
-            </div>
-
-            <div class="flex justify-end space-x-3 mt-8">
-                <button onclick="cerrarModal()" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-bold transition">Cancelar</button>
-                <button onclick="guardarEdicion()" class="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-lg shadow-blue-200 transition transform hover:-translate-y-0.5">Guardar Cambios</button>
-            </div>
-        </div>
-    </div>
 </body>
 </html>
