@@ -1,108 +1,65 @@
-let currentChart = null;
-let tablaPDFData  = null;
+let tablaPDFData = null;
 
-async function cargarDatosDashboard(idPrestador) {
+async function cargarTablaEstado() {
+    const tbody = document.getElementById('tablaResultados');
+    if (!tbody) return;
     try {
-        const response = await fetch(`/api/dashboard/${idPrestador}`);
-        const data = await response.json();
-        actualizarGrafica(data.horas_acumuladas);
-    } catch (error) {
-        console.error("Error obteniendo datos:", error);
-    }
-}
-
-function actualizarGrafica(horas) {
-    const ctx = document.getElementById('myChart').getContext('2d');
-    
-    // Si ya existe una gráfica, la destruimos para no encimar los datos
-    if (currentChart) {
-        currentChart.destroy();
-    }
-
-    currentChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: ['Horas Trabajadas'],
-            datasets: [{ 
-                label: 'Total Acumulado', 
-                data: [horas], 
-                backgroundColor: '#3b82f6',
-                borderRadius: 4
-            }]
-        },
-        options: {
-            scales: { y: { beginAtZero: true } }
+        const res = await fetch('/api/seguimiento-datos');
+        const prestadores = await res.json();
+        if (!prestadores.length) {
+            tbody.innerHTML = '<tr><td colspan="4" class="py-4 px-6 text-center text-gray-400 text-sm">No hay prestadores registrados.</td></tr>';
+            return;
         }
-    });
+        tbody.innerHTML = prestadores.map(p => `
+            <tr class="hover:bg-gray-50 border-b border-gray-100 transition-colors">
+                <td class="py-3 px-6 text-sm font-semibold text-gray-600">${p.id}</td>
+                <td class="py-3 px-6 font-bold text-gray-800">${p.nombre}</td>
+                <td class="py-3 px-6 text-gray-500 text-sm">${p.departamento}</td>
+                <td class="py-3 px-6 font-bold text-blue-600">${p.horas_totales} hrs</td>
+            </tr>`).join('');
+    } catch (e) {
+        console.error('Error cargando tabla de estado:', e);
+    }
 }
 
-// NUEVA FUNCIÓN: Envía el Excel al backend
 async function subirExcel() {
     const fileInput = document.getElementById('archivoExcel');
     const statusText = document.getElementById('uploadStatus');
-    
-    if (fileInput.files.length === 0) {
-        statusText.innerText = "Error: Por favor selecciona un archivo Excel.";
-        statusText.className = "mt-3 text-sm font-medium text-red-600";
+
+    if (!fileInput.files.length) {
+        statusText.innerText = 'Error: Por favor selecciona un archivo Excel.';
+        statusText.className = 'mt-3 text-sm font-medium text-red-600';
         return;
     }
 
     const formData = new FormData();
-    formData.append("file", fileInput.files[0]);
-
-    statusText.innerText = "Procesando archivo, por favor espera...";
-    statusText.className = "mt-3 text-sm font-medium text-blue-600";
+    formData.append('file', fileInput.files[0]);
+    statusText.innerText = 'Procesando archivo, por favor espera...';
+    statusText.className = 'mt-3 text-sm font-medium text-blue-600';
 
     try {
-        const response = await fetch('/api/upload-reporte', {
-            method: 'POST',
-            body: formData
-        });
+        const response = await fetch('/api/upload-reporte', { method: 'POST', body: formData });
         const result = await response.json();
-        
-        statusText.innerText = `¡Reporte cargado con éxito! Se guardaron ${result.procesados} registros en la base de datos.`;
-        statusText.className = "mt-3 text-sm font-medium text-green-600";
 
+        statusText.innerText = `¡Reporte cargado con éxito! Se guardaron ${result.procesados} registros en la base de datos.`;
+        statusText.className = 'mt-3 text-sm font-medium text-green-600';
+
+        // Si el backend envía los datos para el PDF, guardarlos y mostrar el botón
         if (result.tabla_pdf && result.tabla_pdf.length > 0) {
             tablaPDFData = result.tabla_pdf;
-            document.getElementById('btnDescargarPDF').classList.remove('hidden');
+            const btn = document.getElementById('btnDescargarPDF');
+            btn.classList.remove('hidden');
+            btn.classList.add('flex');
         }
 
-        cargarDatosDashboard(1);
+        // Actualizamos la tabla del dashboard automáticamente
+        cargarTablaEstado();
     } catch (error) {
-        statusText.innerText = "Hubo un error al procesar el archivo.";
-        statusText.className = "mt-3 text-sm font-medium text-red-600";
+        statusText.innerText = 'Hubo un error al procesar el archivo.';
+        statusText.className = 'mt-3 text-sm font-medium text-red-600';
     }
 }
 
-// Reemplaza tu función actual por esta para ver los datos en tabla
-function mostrarTablaResultados(horas) {
-    const tbody = document.getElementById('tablaResultados'); // Asegúrate que tu HTML tenga este ID
-    if (!tbody) return;
-
-    tbody.innerHTML = `
-        <tr class="bg-blue-50">
-            <td class="py-3 px-4 font-bold">1</td>
-            <td class="py-3 px-4">Alexia Bernal</td>
-            <td class="py-3 px-4 font-bold text-blue-600">${horas} hrs</td>
-        </tr>
-    `;
-}
-
-// Y en tu función cargarDatosDashboard, llama a esta nueva función:
-async function cargarDatosDashboard(idPrestador) {
-    try {
-        const response = await fetch(`/api/dashboard/${idPrestador}`);
-        const data = await response.json();
-        
-        // Llamamos a la tabla en lugar de la gráfica para ser 100% estables
-        mostrarTablaResultados(data.horas_acumuladas);
-    } catch (error) {
-        console.error("Error obteniendo datos:", error);
-    }
-}
-
-// Cargar la gráfica en ceros al iniciar
 function redondearHoras(horas) {
     const entero  = Math.floor(horas);
     const decimal = horas - entero;
@@ -194,6 +151,5 @@ function generarPDF() {
     doc.save(`resumen_semanal_FAMEX_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    cargarDatosDashboard(1); 
-});
+// Cargar la tabla al iniciar la página
+document.addEventListener('DOMContentLoaded', cargarTablaEstado);
