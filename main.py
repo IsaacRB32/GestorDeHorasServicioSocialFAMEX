@@ -118,3 +118,26 @@ async def actualizar_dia(datos: EdicionDia):
     # Llama a la función de SQLite que creamos en el paso anterior
     exito = actualizar_estatus_dia(datos.id_checador, datos.fecha, datos.horas, datos.estatus)
     return {"mensaje": "Día actualizado correctamente", "exito": exito}
+
+@app.get("/api/analitica-general")
+def obtener_analitica():
+    conn = obtener_conexion()
+    cursor = conn.cursor()
+    # Consulta para obtener horas por departamento
+    cursor.execute("""
+        SELECT p.departamento, SUM(r.horas_trabajadas) as total
+        FROM prestadores p
+        JOIN registros r ON p.id_checador = r.id_checador
+        GROUP BY p.departamento
+    """)
+    depto_data = cursor.fetchall()
+    
+    # Consulta para obtener estatus global
+    cursor.execute("SELECT estatus, COUNT(*) as count FROM registros GROUP BY estatus")
+    estatus_data = cursor.fetchall()
+    
+    conn.close()
+    return {
+        "departamentos": [{"depto": r["departamento"], "total": r["total"]} for r in depto_data],
+        "estatus": [{"estado": r["estatus"], "total": r["count"]} for r in estatus_data]
+    }

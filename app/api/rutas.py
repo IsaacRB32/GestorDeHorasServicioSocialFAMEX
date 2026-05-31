@@ -28,3 +28,4 @@ async def upload_reporte(file: UploadFile = File(...)):
 async def obtener_datos_dashboard(id_prestador: int):
     # Aquí llamarías a crud.obtener_resumen_mensual(id_prestador)
     return {"id": id_prestador, "horas_acumuladas": 120, "progreso": 25}
+

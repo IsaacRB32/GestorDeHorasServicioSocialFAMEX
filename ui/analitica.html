@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Analítica Ejecutiva - FAMEX</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="css/style.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="flex h-screen">
+        <aside class="w-64 bg-slate-900 text-white p-6 shadow-xl z-10 flex flex-col">
+            <h1 class="text-xl font-bold mb-10 tracking-wider">FAMEX <span class="text-blue-400">Control</span></h1>
+            <nav class="space-y-2 flex-1">
+                <a href="index.html" class="block py-2.5 px-4 rounded transition hover:bg-slate-700">Panel de Carga</a>
+                <a href="prestadores.html" class="block py-2.5 px-4 rounded transition hover:bg-slate-700">Directorio</a>
+                <a href="seguimiento.html" class="block py-2.5 px-4 rounded transition hover:bg-slate-700">Expedientes</a>
+                <a href="#" class="block py-2.5 px-4 rounded bg-blue-600 font-semibold shadow">Analítica Global</a>
+            </nav>
+        </aside>
+
+        <main class="flex-1 p-8 overflow-y-auto">
+            <div class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-gray-100 flex flex-col lg:flex-row justify-between items-center gap-4">
+                <div>
+                    <h2 class="text-2xl font-black text-gray-800">Centro de Comando Ejecutivo</h2>
+                    <p class="text-sm text-gray-500 mt-1">Rendimiento general e indicadores de asistencia</p>
+                </div>
+                <div class="flex space-x-4">
+                    <input type="text" id="filtroNombre" placeholder="Buscar persona..." class="border border-gray-300 pl-4 py-2 rounded-lg w-56 focus:ring-2 focus:ring-blue-500">
+                    <select id="filtroDepto" class="border border-gray-300 p-2 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
+                        <option value="Todos">Toda la Feria (Global)</option>
+                        <option value="LOGISTICA">Logística</option>
+                        <option value="OPERACIONES">Operaciones</option>
+                        <option value="COMERCIAL">Comercial</option>
+                        <option value="PUBLICIDAD">Publicidad</option>
+                        <option value="RELACIONES PUBLICAS">Relaciones Públicas</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6" id="kpiContainer">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-blue-500">
+                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Horas Totales Aportadas</h3>
+                    <p class="text-4xl font-black text-gray-800" id="kpiHoras">0</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-green-500">
+                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Prestadores Activos</h3>
+                    <p class="text-4xl font-black text-gray-800" id="kpiActivos">0</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-red-500">
+                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Faltas Registradas</h3>
+                    <p class="text-4xl font-black text-gray-800" id="kpiFaltas">0</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">Rendimiento por Departamento (Horas)</h3>
+                    <div class="relative h-64">
+                        <canvas id="graficaDeptos"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">Distribución de Estatus</h3>
+                    <div class="relative h-64 flex justify-center">
+                        <canvas id="graficaEstatus"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="bg-slate-50 p-4 border-b border-gray-200">
+                    <h3 class="text-lg font-bold text-gray-800">Top Rendimiento (Más cerca de su meta)</h3>
+                </div>
+                <table class="min-w-full text-left">
+                    <thead class="bg-gray-800 text-white text-xs uppercase tracking-wider">
+                        <tr>
+                            <th class="py-3 px-6">Posición</th>
+                            <th class="py-3 px-6">Prestador</th>
+                            <th class="py-3 px-6">Departamento</th>
+                            <th class="py-3 px-6 text-right">Progreso</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaRanking" class="divide-y divide-gray-200 bg-white">
+                        </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let datosGlobales = [];
+        let chartBarras = null;
+        let chartPastel = null;
+
+        // 1. Descargamos la data más completa que ya tienes en el backend
+        async function inicializarDashboard() {
+            const res = await fetch('/api/seguimiento-datos');
+            datosGlobales = await response.json();
+            actualizarTablero(); // Dibuja todo la primera vez
+        }
+
+        // 2. Escuchamos los filtros para que sea interactivo
+        document.getElementById('filtroDepto').addEventListener('change', actualizarTablero);
+        document.getElementById('filtroNombre').addEventListener('input', actualizarTablero);
+
+        function actualizarTablero() {
+            // Filtramos la data en el cliente (Rapidísimo)
+            const depto = document.getElementById('filtroDepto').value;
+            const nombre = document.getElementById('filtroNombre').value.toLowerCase();
+
+            const filtrados = datosGlobales.filter(p => {
+                const matchDepto = (depto === 'Todos' || p.departamento === depto);
+                const matchNombre = p.nombre.toLowerCase().includes(nombre);
+                return matchDepto && matchNombre;
+            });
+
+            calcularKPIs(filtrados);
+            dibujarGraficaBarras(filtrados);
+            dibujarGraficaPastel(filtrados);
+            dibujarRanking(filtrados);
+        }
+
+        function calcularKPIs(datos) {
+            let totalHoras = 0;
+            let totalFaltas = 0;
+
+            datos.forEach(p => {
+                totalHoras += p.horas_totales;
+                totalFaltas += p.faltas;
+            });
+
+            document.getElementById('kpiHoras').innerText = totalHoras.toFixed(1);
+            document.getElementById('kpiActivos').innerText = datos.length;
+            document.getElementById('kpiFaltas').innerText = totalFaltas;
+        }
+
+        function dibujarGraficaBarras(datos) {
+            // Agrupamos horas por departamento
+            const agrupado = {};
+            datos.forEach(p => {
+                if(!agrupado[p.departamento]) agrupado[p.departamento] = 0;
+                agrupado[p.departamento] += p.horas_totales;
+            });
+
+            const etiquetas = Object.keys(agrupado);
+            const valores = Object.values(agrupado);
+
+            if(chartBarras) chartBarras.destroy();
+
+            const ctx = document.getElementById('graficaDeptos').getContext('2d');
+            chartBarras = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: etiquetas,
+                    datasets: [{
+                        label: 'Horas Totales',
+                        data: valores,
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function dibujarGraficaPastel(datos) {
+            let asistencias = 0; let faltas = 0; let justificantes = 0;
+
+            datos.forEach(p => {
+                asistencias += (p.registros.filter(r => r.horas > 0).length);
+                faltas += p.faltas;
+                justificantes += p.justificantes;
+            });
+
+            if(chartPastel) chartPastel.destroy();
+
+            const ctx = document.getElementById('graficaEstatus').getContext('2d');
+            chartPastel = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Asistencias', 'Faltas', 'Justificados'],
+                    datasets: [{
+                        data: [asistencias, faltas, justificantes],
+                        backgroundColor: ['#10b981', '#ef4444', '#f59e0b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function dibujarRanking(datos) {
+            // Ordenamos a los prestadores por horas de mayor a menor y tomamos el Top 5
+            const ranking = [...datos].sort((a, b) => b.horas_totales - a.horas_totales).slice(0, 5);
+            const tbody = document.getElementById('tablaRanking');
+            tbody.innerHTML = '';
+
+            ranking.forEach((p, index) => {
+                let porcentaje = Math.min((p.horas_totales / 480) * 100, 100).toFixed(1);
+                
+                // Medalla de oro, plata o bronce visual para el Top 3
+                let posColor = index === 0 ? 'bg-yellow-400 text-white' : 
+                               index === 1 ? 'bg-gray-300 text-gray-800' : 
+                               index === 2 ? 'bg-amber-600 text-white' : 'bg-gray-100 text-gray-600';
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="py-3 px-6 whitespace-nowrap">
+                            <span class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${posColor}">${index + 1}</span>
+                        </td>
+                        <td class="py-3 px-6 font-bold text-gray-800">${p.nombre}</td>
+                        <td class="py-3 px-6 text-gray-500 text-sm">${p.departamento}</td>
+                        <td class="py-3 px-6 text-right">
+                            <div class="flex items-center justify-end">
+                                <span class="font-black text-blue-600 mr-2">${p.horas_totales}h</span>
+                                <span class="text-xs font-bold text-gray-400">(${porcentaje}%)</span>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // --- Manejo de error por si se queda en una promesa (Fetch fix) ---
+        async function fetchInit() {
+            try {
+                const response = await fetch('/api/seguimiento-datos');
+                datosGlobales = await response.json();
+                actualizarTablero();
+            } catch (e) {
+                console.error("Aún procesando datos...", e);
+            }
+        }
+        
+        fetchInit();
+    </script>
+</body>
+</html>
