@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Directorio de Prestadores</title>
+    <link href="css/style.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="flex h-screen">
+        <aside class="w-64 bg-slate-900 text-white p-6">
+            <h1 class="text-xl font-bold mb-10">Control de Servicio</h1>
+            <nav class="space-y-2">
+                <a href="index.html" class="block py-2.5 px-4 rounded hover:bg-slate-700">Dashboard</a>
+                <a href="#" class="block py-2.5 px-4 rounded bg-slate-700">Prestadores</a>
+            </nav>
+        </aside>
+
+        <main class="flex-1 p-10">
+            <h2 class="text-2xl font-semibold mb-6">Directorio de Prestadores</h2>
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <table class="min-w-full text-left" id="tablaPrestadores">
+                    <thead class="bg-gray-800 text-white">
+                        <tr>
+                            <th class="py-3 px-4">ID</th>
+                            <th class="py-3 px-4">Nombre Completo</th>
+                            <th class="py-3 px-4">Departamento</th> </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        async function cargarDirectorio() {
+            // Asumiendo que tienes un endpoint que devuelve la lista de prestadores
+            const response = await fetch('/api/prestadores-lista');
+            const lista = await response.json();
+            const tbody = document.querySelector('#tablaPrestadores tbody');
+            
+            lista.forEach(p => {
+                tbody.innerHTML += `<tr class="hover:bg-gray-50 border-b border-gray-200">
+                    <td class="py-3 px-4">${p.id}</td>
+                    <td class="py-3 px-4 font-medium">${p.nombre}</td>
+                    <td class="py-3 px-4 text-gray-600">${p.departamento}</td>
+                </tr>`;
+            });
+        }
+        cargarDirectorio();
+    </script>
+</body>
+</html>
