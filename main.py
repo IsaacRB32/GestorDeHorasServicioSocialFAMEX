@@ -71,12 +71,18 @@ def obtener_prestadores():
     cursor = conn.cursor()
     try:
         # Añadimos 'departamento' a la consulta SQL
-        cursor.execute("SELECT id_checador, nombre, departamento FROM prestadores")
+        cursor.execute("SELECT id_checador, nombre, departamento, fecha_inicio, fecha_termino, horas_obligatorias FROM prestadores")
         rows = cursor.fetchall()
         
-        # Mapeamos los 3 datos
         lista_prestadores = [
-            {"id": row["id_checador"], "nombre": row["nombre"], "departamento": row["departamento"]} 
+            {
+                "id": row["id_checador"],
+                "nombre": row["nombre"],
+                "departamento": row["departamento"],
+                "fecha_inicio": row["fecha_inicio"] or "2026-01-01",
+                "fecha_termino": row["fecha_termino"] or "2026-07-01",
+                "horas_obligatorias": row["horas_obligatorias"] or 480
+            }
             for row in rows
         ]
         return lista_prestadores
@@ -131,12 +137,48 @@ class EdicionDia(BaseModel):
     horas: float
     estatus: str
 
+class PrestadorInput(BaseModel):
+    id_checador: int
+    nombre: str
+    departamento: str
+    fecha_inicio: str = "2026-01-01"
+    fecha_termino: str = "2026-07-01"
+    horas_obligatorias: int = 480
+
 # 3. Pega este endpoint en cualquier parte abajo de tus otras rutas
 @app.post("/api/actualizar-dia")
 async def actualizar_dia(datos: EdicionDia):
     # Llama a la función de SQLite que creamos en el paso anterior
     exito = actualizar_estatus_dia(datos.id_checador, datos.fecha, datos.horas, datos.estatus)
     return {"mensaje": "Día actualizado correctamente", "exito": exito}
+
+@app.post("/api/prestadores")
+async def crear_prestador_api(datos: PrestadorInput):
+    ok = registrar_prestador(
+        datos.id_checador, datos.nombre, datos.departamento,
+        datos.fecha_inicio, datos.fecha_termino, datos.horas_obligatorias
+    )
+    if not ok:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=409, detail="El ID Checador ya existe en el sistema")
+    return {"mensaje": "Prestador creado exitosamente"}
+
+@app.put("/api/prestadores/{id_checador}")
+async def actualizar_prestador_api(id_checador: int, datos: PrestadorInput):
+    conn = obtener_conexion()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            UPDATE prestadores SET nombre = ?, departamento = ?, fecha_inicio = ?, fecha_termino = ?, horas_obligatorias = ?
+            WHERE id_checador = ?
+        ''', (datos.nombre, datos.departamento, datos.fecha_inicio, datos.fecha_termino, datos.horas_obligatorias, id_checador))
+        conn.commit()
+        if cursor.rowcount == 0:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="Prestador no encontrado")
+    finally:
+        conn.close()
+    return {"mensaje": "Prestador actualizado exitosamente"}
 
 @app.get("/api/analitica-general")
 def obtener_analitica():

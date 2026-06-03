@@ -8,55 +8,382 @@
 </head>
 <body class="bg-gray-100 font-sans">
     <div class="flex h-screen">
-        <!-- Menú Lateral Unificado -->
-        <aside class="w-64 bg-slate-900 text-white p-6 shadow-xl z-10">
+        <aside class="w-64 bg-slate-900 text-white p-6 shadow-xl z-10 flex flex-col flex-shrink-0">
             <h1 class="text-xl font-bold mb-10 tracking-wider">FAMEX <span class="text-blue-400">Control</span></h1>
-            <nav class="space-y-2">
+            <nav class="space-y-2 flex-1">
                 <a href="index.html" class="block py-2.5 px-4 rounded hover:bg-slate-700 transition">Panel de Carga</a>
-                <a href="#" class="block py-2.5 px-4 rounded bg-slate-700 font-semibold shadow">Directorio</a>
+                <a href="#" class="block py-2.5 px-4 rounded bg-blue-600 font-semibold shadow">Directorio</a>
                 <a href="seguimiento.html" class="block py-2.5 px-4 rounded hover:bg-slate-700 transition">Expedientes</a>
                 <a href="analitica.html" class="block py-2.5 px-4 rounded hover:bg-slate-700 transition">Analítica Global</a>
             </nav>
         </aside>
 
-        <!-- Contenido Principal -->
         <main class="flex-1 p-8 overflow-y-auto">
-            <div class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-gray-100">
-                <h2 class="text-2xl font-bold text-gray-800">Directorio de Prestadores</h2>
-                <p class="text-sm text-gray-500 mt-1">Lista completa del personal registrado en el sistema</p>
+            <!-- Header -->
+            <div class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-gray-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <div>
+                    <h2 class="text-2xl font-black text-gray-800">Directorio de Prestadores</h2>
+                    <p class="text-sm text-gray-500 mt-1">Administración integral del personal de servicio social</p>
+                </div>
+                <button onclick="abrirModal('crear', null)"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-5 rounded-xl transition shadow-lg shadow-blue-200 flex items-center gap-2 text-sm transform hover:-translate-y-0.5">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                    Agregar Prestador
+                </button>
             </div>
 
-            <div class="bg-white rounded-xl shadow overflow-hidden border border-gray-200">
+            <!-- Barra de filtros -->
+            <div class="bg-white p-4 rounded-xl shadow-sm mb-6 border border-gray-100 flex flex-col sm:flex-row gap-3">
+                <div class="relative flex-1">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    <input type="text" id="filtroNombre" placeholder="Buscar por nombre..."
+                        class="border border-gray-200 pl-10 pr-4 py-2.5 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                </div>
+                <select id="filtroDepto"
+                    class="border border-gray-200 p-2.5 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-[200px]">
+                    <option value="Todos">Todos los departamentos</option>
+                    <option value="LOGISTICA">Logística</option>
+                    <option value="OPERACIONES">Operaciones</option>
+                    <option value="COMERCIAL">Comercial</option>
+                    <option value="PUBLICIDAD">Publicidad</option>
+                    <option value="RELACIONES PUBLICAS">Relaciones Públicas</option>
+                    <option value="General">General</option>
+                </select>
+                <div class="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 px-4 py-2.5 rounded-xl border border-gray-100">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+                    <span class="font-bold text-gray-700" id="contadorTotal">0</span> registrados
+                </div>
+            </div>
+
+            <!-- Tabla -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <table class="min-w-full text-left" id="tablaPrestadores">
-                    <thead class="bg-gray-800 text-white text-xs uppercase tracking-wider">
+                    <thead class="bg-gray-800 text-white text-[11px] uppercase tracking-wider">
                         <tr>
-                            <th class="py-3 px-6">ID</th>
-                            <th class="py-3 px-6">Nombre Completo</th>
-                            <th class="py-3 px-6">Departamento</th> 
+                            <th class="py-3.5 px-6">ID Checador</th>
+                            <th class="py-3.5 px-6">Nombre Completo</th>
+                            <th class="py-3.5 px-6">Departamento</th>
+                            <th class="py-3.5 px-6 text-center">Meta (hrs)</th>
+                            <th class="py-3.5 px-6 text-center w-32">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200 bg-white"></tbody>
+                    <tbody id="tbodyPrestadores" class="divide-y divide-gray-100 bg-white"></tbody>
                 </table>
+                <div id="sinResultados" class="hidden py-16 text-center">
+                    <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.182 16.318A4.486 4.486 0 0012.016 15a4.486 4.486 0 00-3.198 1.318M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z"/></svg>
+                    <p class="text-gray-400 font-semibold">No se encontraron prestadores</p>
+                    <p class="text-gray-300 text-sm mt-1">Intenta con otro filtro o agrega uno nuevo</p>
+                </div>
             </div>
         </main>
     </div>
 
+    <!-- MODAL CREAR / EDITAR -->
+    <div id="modalPrestador" class="fixed inset-0 bg-slate-900 bg-opacity-60 hidden flex justify-center items-center z-50 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl p-7 w-[520px] max-w-[95vw] transform transition-all">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-black text-gray-800" id="modalTitulo">Nuevo Prestador</h3>
+                <button onclick="cerrarModal()" class="text-gray-400 hover:text-red-500 font-bold text-2xl leading-none transition">&times;</button>
+            </div>
+
+            <div class="space-y-4">
+                <!-- ID Checador -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">ID Checador</label>
+                    <input type="number" id="inputId" min="1"
+                        class="border-2 border-gray-200 focus:border-blue-500 p-3 rounded-xl w-full font-bold text-gray-800 bg-gray-50 focus:outline-none focus:bg-white transition-colors">
+                    <p id="ayudaId" class="text-[11px] text-gray-400 mt-1">Número único del reloj checador físico</p>
+                </div>
+
+                <!-- Nombre -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Nombre Completo</label>
+                    <input type="text" id="inputNombre" placeholder="Ej: MARÍA LÓPEZ GARCÍA"
+                        class="border-2 border-gray-200 focus:border-blue-500 p-3 rounded-xl w-full font-bold text-gray-800 bg-gray-50 focus:outline-none focus:bg-white transition-colors uppercase">
+                </div>
+
+                <!-- Departamento -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Departamento</label>
+                    <select id="inputDepto"
+                        class="border-2 border-gray-200 focus:border-blue-500 p-3 rounded-xl w-full font-bold text-gray-800 bg-gray-50 focus:outline-none focus:bg-white transition-colors">
+                        <option value="">— Seleccionar —</option>
+                        <option value="LOGISTICA">Logística</option>
+                        <option value="OPERACIONES">Operaciones</option>
+                        <option value="COMERCIAL">Comercial</option>
+                        <option value="PUBLICIDAD">Publicidad</option>
+                        <option value="RELACIONES PUBLICAS">Relaciones Públicas</option>
+                        <option value="General">General</option>
+                    </select>
+                </div>
+
+                <!-- Fechas -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Fecha Inicio</label>
+                        <input type="date" id="inputFInicio" value="2026-01-01"
+                            class="border-2 border-gray-200 focus:border-blue-500 p-3 rounded-xl w-full text-gray-800 bg-gray-50 focus:outline-none focus:bg-white transition-colors text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Fecha Término</label>
+                        <input type="date" id="inputFTermino" value="2026-07-01"
+                            class="border-2 border-gray-200 focus:border-blue-500 p-3 rounded-xl w-full text-gray-800 bg-gray-50 focus:outline-none focus:bg-white transition-colors text-sm">
+                    </div>
+                </div>
+
+                <!-- Horas Meta -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Horas Obligatorias</label>
+                    <input type="number" id="inputMeta" value="480" min="1"
+                        class="border-2 border-gray-200 focus:border-blue-500 p-3 rounded-xl w-full font-bold text-gray-800 bg-gray-50 focus:outline-none focus:bg-white transition-colors">
+                </div>
+            </div>
+
+            <!-- Error -->
+            <div id="modalError" class="hidden mt-4 bg-red-50 border-2 border-red-200 text-red-700 text-sm font-bold rounded-xl p-3 text-center"></div>
+
+            <div class="flex justify-end space-x-3 pt-6 mt-2 border-t border-gray-100">
+                <button onclick="cerrarModal()" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-bold transition text-sm">Cancelar</button>
+                <button onclick="guardarPrestador()" id="btnGuardar"
+                    class="px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold shadow-lg shadow-blue-200 transition transform hover:-translate-y-0.5 text-sm">
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIRMAR ELIMINACIÓN -->
+    <div id="modalEliminar" class="fixed inset-0 bg-slate-900 bg-opacity-60 hidden flex justify-center items-center z-50 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl p-7 w-[420px] max-w-[95vw] text-center">
+            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+            </div>
+            <h3 class="text-lg font-black text-gray-800 mb-2">Confirmar Baja</h3>
+            <p class="text-sm text-gray-500 mb-1">Estás a punto de eliminar a:</p>
+            <p class="font-black text-gray-800 text-lg mb-1" id="elimNombre"></p>
+            <p class="text-xs text-red-500 font-semibold mb-6">Se borrarán todos sus registros de asistencia. Esta acción no se puede deshacer.</p>
+            <input type="hidden" id="elimId">
+            <div class="flex justify-center gap-3">
+                <button onclick="cerrarModalEliminar()" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-bold transition text-sm">Cancelar</button>
+                <button onclick="confirmarEliminacion()" class="px-6 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 font-bold shadow-lg shadow-red-200 transition text-sm">Sí, Dar de Baja</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        async function cargarDirectorio() {
-            const response = await fetch('/api/prestadores-lista');
-            const lista = await response.json();
-            const tbody = document.querySelector('#tablaPrestadores tbody');
-            tbody.innerHTML = ''; // Limpiamos antes de llenar
-                         
-            lista.forEach(p => {
-                tbody.innerHTML += `
-                    <tr class="hover:bg-gray-50 border-b border-gray-200 transition-colors">
-                        <td class="py-3 px-6 text-sm font-semibold text-gray-600">${p.id}</td>
-                        <td class="py-3 px-6 font-bold text-gray-800">${p.nombre}</td>
-                        <td class="py-3 px-6 text-gray-600 text-sm font-medium">${p.departamento}</td>
-                    </tr>`;
-            });
+        let listaPrestadores = [];
+        let modoEdicion = false;
+
+        const DEPTO_BADGE = {
+            'LOGISTICA':          'bg-blue-100 text-blue-700 border-blue-200',
+            'OPERACIONES':        'bg-emerald-100 text-emerald-700 border-emerald-200',
+            'COMERCIAL':          'bg-violet-100 text-violet-700 border-violet-200',
+            'PUBLICIDAD':         'bg-amber-100 text-amber-700 border-amber-200',
+            'RELACIONES PUBLICAS':'bg-pink-100 text-pink-700 border-pink-200',
+            'General':            'bg-gray-100 text-gray-600 border-gray-200'
+        };
+
+        function badgeDepto(depto) {
+            const cls = DEPTO_BADGE[depto] || DEPTO_BADGE['General'];
+            return `<span class="inline-block px-2.5 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider border ${cls}">${depto}</span>`;
         }
+
+        // ============ CARGA Y RENDERIZADO ============
+        async function cargarDirectorio() {
+            try {
+                const res = await fetch('/api/prestadores-lista');
+                listaPrestadores = await res.json();
+            } catch (e) {
+                console.error('Error cargando directorio:', e);
+                listaPrestadores = [];
+            }
+            aplicarFiltros();
+        }
+
+        function aplicarFiltros() {
+            const txt   = document.getElementById('filtroNombre').value.toLowerCase().trim();
+            const depto = document.getElementById('filtroDepto').value;
+
+            const filtrados = listaPrestadores.filter(p => {
+                const matchN = p.nombre.toLowerCase().includes(txt);
+                const matchD = depto === 'Todos' || p.departamento === depto;
+                return matchN && matchD;
+            });
+
+            document.getElementById('contadorTotal').innerText = listaPrestadores.length;
+            renderTabla(filtrados);
+        }
+
+        function renderTabla(datos) {
+            const tbody = document.getElementById('tbodyPrestadores');
+            const vacio = document.getElementById('sinResultados');
+
+            if (datos.length === 0) {
+                tbody.innerHTML = '';
+                vacio.classList.remove('hidden');
+                return;
+            }
+            vacio.classList.add('hidden');
+
+            tbody.innerHTML = datos.map(p => `
+                <tr class="hover:bg-blue-50/40 transition-colors group">
+                    <td class="py-3.5 px-6">
+                        <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-slate-100 text-sm font-black text-slate-600 border border-slate-200 group-hover:bg-blue-100 group-hover:text-blue-700 transition">${p.id}</span>
+                    </td>
+                    <td class="py-3.5 px-6 font-bold text-gray-800">${p.nombre}</td>
+                    <td class="py-3.5 px-6">${badgeDepto(p.departamento)}</td>
+                    <td class="py-3.5 px-6 text-center font-bold text-gray-600">${p.horas_obligatorias}</td>
+                    <td class="py-3.5 px-6">
+                        <div class="flex items-center justify-center gap-2">
+                            <button onclick="abrirEdicion(${p.id})"
+                                title="Editar"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition-all">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
+                                Editar
+                            </button>
+                            <button onclick="abrirModalEliminar(${p.id}, '${p.nombre.replace(/'/g,"\\'")}')"
+                                title="Dar de baja"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-red-50 text-red-600 border border-red-200 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                                Baja
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        document.getElementById('filtroNombre').addEventListener('input', aplicarFiltros);
+        document.getElementById('filtroDepto').addEventListener('change', aplicarFiltros);
+
+        // ============ MODAL CREAR / EDITAR ============
+        function abrirEdicion(id) {
+            const p = listaPrestadores.find(x => x.id === id);
+            if (!p) return;
+            abrirModal('editar', p);
+        }
+
+        function abrirModal(modo, datos) {
+            modoEdicion = modo === 'editar';
+            const modal = document.getElementById('modalPrestador');
+            modal.classList.remove('hidden');
+            document.getElementById('modalError').classList.add('hidden');
+
+            if (modoEdicion && datos) {
+                document.getElementById('modalTitulo').innerText = 'Editar Prestador';
+                document.getElementById('btnGuardar').innerText  = 'Actualizar';
+                document.getElementById('inputId').value      = datos.id;
+                document.getElementById('inputId').disabled    = true;
+                document.getElementById('inputId').classList.add('opacity-50', 'cursor-not-allowed');
+                document.getElementById('ayudaId').innerText   = 'El ID no se puede modificar';
+                document.getElementById('inputNombre').value   = datos.nombre;
+                document.getElementById('inputDepto').value    = datos.departamento;
+                document.getElementById('inputFInicio').value  = datos.fecha_inicio;
+                document.getElementById('inputFTermino').value = datos.fecha_termino;
+                document.getElementById('inputMeta').value     = datos.horas_obligatorias;
+            } else {
+                document.getElementById('modalTitulo').innerText = 'Nuevo Prestador';
+                document.getElementById('btnGuardar').innerText  = 'Guardar';
+                document.getElementById('inputId').value    = '';
+                document.getElementById('inputId').disabled = false;
+                document.getElementById('inputId').classList.remove('opacity-50', 'cursor-not-allowed');
+                document.getElementById('ayudaId').innerText     = 'Número único del reloj checador físico';
+                document.getElementById('inputNombre').value     = '';
+                document.getElementById('inputDepto').value      = '';
+                document.getElementById('inputFInicio').value    = '2026-01-01';
+                document.getElementById('inputFTermino').value   = '2026-07-01';
+                document.getElementById('inputMeta').value       = 480;
+            }
+        }
+
+        function cerrarModal() {
+            document.getElementById('modalPrestador').classList.add('hidden');
+        }
+
+        function mostrarError(msg) {
+            const el = document.getElementById('modalError');
+            el.innerText = msg;
+            el.classList.remove('hidden');
+        }
+
+        async function guardarPrestador() {
+            const id     = parseInt(document.getElementById('inputId').value);
+            const nombre = document.getElementById('inputNombre').value.trim().toUpperCase();
+            const depto  = document.getElementById('inputDepto').value;
+            const fIni   = document.getElementById('inputFInicio').value;
+            const fFin   = document.getElementById('inputFTermino').value;
+            const meta   = parseInt(document.getElementById('inputMeta').value) || 480;
+
+            if (!id || id <= 0)  { mostrarError('Ingresa un ID Checador válido'); return; }
+            if (!nombre)         { mostrarError('Ingresa el nombre completo'); return; }
+            if (!depto)          { mostrarError('Selecciona un departamento'); return; }
+
+            const payload = {
+                id_checador: id,
+                nombre: nombre,
+                departamento: depto,
+                fecha_inicio: fIni,
+                fecha_termino: fFin,
+                horas_obligatorias: meta
+            };
+
+            try {
+                let res;
+                if (modoEdicion) {
+                    res = await fetch(`/api/prestadores/${id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                } else {
+                    res = await fetch('/api/prestadores', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                }
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    mostrarError(err.detail || `Error del servidor (${res.status})`);
+                    return;
+                }
+
+                cerrarModal();
+                cargarDirectorio();
+            } catch (e) {
+                mostrarError('Error de conexión con el servidor');
+            }
+        }
+
+        // ============ MODAL ELIMINAR ============
+        function abrirModalEliminar(id, nombre) {
+            document.getElementById('elimId').value = id;
+            document.getElementById('elimNombre').innerText = nombre;
+            document.getElementById('modalEliminar').classList.remove('hidden');
+        }
+
+        function cerrarModalEliminar() {
+            document.getElementById('modalEliminar').classList.add('hidden');
+        }
+
+        async function confirmarEliminacion() {
+            const id = document.getElementById('elimId').value;
+            try {
+                const res = await fetch(`/api/prestadores/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    cerrarModalEliminar();
+                    cargarDirectorio();
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert(err.detail || 'Error al eliminar');
+                }
+            } catch (e) {
+                alert('Error de conexión');
+            }
+        }
+
+        // ============ INIT ============
         cargarDirectorio();
     </script>
 </body>
