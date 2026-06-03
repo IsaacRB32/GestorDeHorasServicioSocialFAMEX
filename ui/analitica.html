@@ -160,7 +160,6 @@
             'PUBLICIDAD':          'bg-amber-100 text-amber-700 border-amber-200',
             'RELACIONES PUBLICAS': 'bg-pink-100 text-pink-700 border-pink-200',
             'ADQUISICIONES':       'bg-cyan-100 text-cyan-700 border-cyan-200',
-            'General':             'bg-gray-100 text-gray-600 border-gray-200'
         };
 
         function obtenerLunesDeHoy() {
@@ -386,7 +385,16 @@
         document.getElementById('filtroNombre').addEventListener('input', renderizar);
         document.getElementById('filtroDepto').addEventListener('change', renderizar);
 
-        cargar();
+        async function poblarDepartamentos() {
+            try {
+                const res = await fetch('/api/departamentos');
+                const deptos = await res.json();
+                const sel = document.getElementById('filtroDepto');
+                sel.innerHTML = '<option value="Todos">Todos los departamentos</option>';
+                deptos.forEach(d => { sel.innerHTML += `<option value="${d}">${d}</option>`; });
+            } catch(e) {}
+        }
+        poblarDepartamentos().then(() => cargar());
     </script>
 </body>
 </html>

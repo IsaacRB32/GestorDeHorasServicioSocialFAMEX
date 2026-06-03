@@ -10,6 +10,25 @@ MES_MAP = {
 JUSTIFICANTES = {'J', 'J ', 'P'}
 FALTAS = {'X', 'X ', 'N'}
 
+# Mapa de normalización: cualquier variante → nombre canónico
+_DEPTO_MAP = {
+    'LOGISTICA': 'LOGISTICA', 'LOGÍSTICA': 'LOGISTICA',
+    'OPERACIONES': 'OPERACIONES',
+    'COMERCIAL': 'COMERCIAL',
+    'PUBLICIDAD': 'PUBLICIDAD',
+    'RELACIONES PUBLICAS': 'RELACIONES PUBLICAS',
+    'RELACIONES PÚBLICAS': 'RELACIONES PUBLICAS',
+    'ADQUISICIONES': 'ADQUISICIONES',
+    'GENERAL': 'General',
+}
+
+def normalizar_departamento(raw):
+    if not raw or str(raw).strip().lower() in ('', 'nan', 'none'):
+        return 'General'
+    limpio = str(raw).strip()
+    clave = limpio.upper().replace('Á','A').replace('É','E').replace('Í','I').replace('Ó','O').replace('Ú','U')
+    return _DEPTO_MAP.get(clave, limpio.upper())
+
 
 def procesar_seguimiento_historico(ruta_excel):
     df = pd.read_excel(ruta_excel, sheet_name='SS 2026', header=None)
@@ -44,7 +63,7 @@ def procesar_seguimiento_historico(ruta_excel):
                     prestadores[id_checador] = {
                         'id_checador': id_checador,
                         'nombre': str(nombre_raw).strip(),
-                        'departamento': str(depto_raw).strip() if pd.notna(depto_raw) else 'General'
+                        'departamento': normalizar_departamento(depto_raw)
                     }
 
         mes_str = str(row.iloc[5]).strip() if pd.notna(row.iloc[5]) else None

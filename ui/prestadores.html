@@ -180,6 +180,7 @@
             'COMERCIAL':          'bg-violet-100 text-violet-700 border-violet-200',
             'PUBLICIDAD':         'bg-amber-100 text-amber-700 border-amber-200',
             'RELACIONES PUBLICAS':'bg-pink-100 text-pink-700 border-pink-200',
+            'ADQUISICIONES':      'bg-cyan-100 text-cyan-700 border-cyan-200',
             'General':            'bg-gray-100 text-gray-600 border-gray-200'
         };
 
@@ -383,8 +384,25 @@
             }
         }
 
+        // ============ POBLAR DROPDOWNS DINÁMICOS ============
+        async function poblarDepartamentos() {
+            try {
+                const res = await fetch('/api/departamentos');
+                const deptos = await res.json();
+                // Filtro principal
+                const sel = document.getElementById('filtroDepto');
+                sel.innerHTML = '<option value="Todos">Todos los departamentos</option>';
+                deptos.forEach(d => { sel.innerHTML += `<option value="${d}">${d}</option>`; });
+                // Select del modal
+                const selModal = document.getElementById('inputDepto');
+                const primera = '<option value="">— Seleccionar —</option>';
+                selModal.innerHTML = primera;
+                deptos.forEach(d => { selModal.innerHTML += `<option value="${d}">${d}</option>`; });
+            } catch(e) { console.error('Error cargando departamentos:', e); }
+        }
+
         // ============ INIT ============
-        cargarDirectorio();
+        poblarDepartamentos().then(() => cargarDirectorio());
     </script>
 </body>
 </html>

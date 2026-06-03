@@ -16,6 +16,26 @@ from app.services.migrador_historico import procesar_seguimiento_historico
 inicializar_bd()
 registrar_prestador(1, "ALEXIA BERNAL", "LOGISTICA", "2026-01-01", "2026-07-01", 480)
 
+# Normalizar departamentos existentes en la BD (fix datos legacy)
+def _normalizar_deptos_existentes():
+    conn = obtener_conexion()
+    cursor = conn.cursor()
+    _mapa = {
+        'LOGÍSTICA': 'LOGISTICA', 'Logística': 'LOGISTICA', 'Logistica': 'LOGISTICA', 'logistica': 'LOGISTICA',
+        'RELACIONES PÚBLICAS': 'RELACIONES PUBLICAS', 'Relaciones Públicas': 'RELACIONES PUBLICAS',
+        'Relaciones Publicas': 'RELACIONES PUBLICAS', 'relaciones publicas': 'RELACIONES PUBLICAS',
+        'OPERACIONES': 'OPERACIONES', 'Operaciones': 'OPERACIONES', 'operaciones': 'OPERACIONES',
+        'COMERCIAL': 'COMERCIAL', 'Comercial': 'COMERCIAL', 'comercial': 'COMERCIAL',
+        'PUBLICIDAD': 'PUBLICIDAD', 'Publicidad': 'PUBLICIDAD', 'publicidad': 'PUBLICIDAD',
+        'ADQUISICIONES': 'ADQUISICIONES', 'Adquisiciones': 'ADQUISICIONES',
+    }
+    for variante, canonico in _mapa.items():
+        cursor.execute("UPDATE prestadores SET departamento = ? WHERE departamento = ?", (canonico, variante))
+    conn.commit()
+    conn.close()
+
+_normalizar_deptos_existentes()
+
 app = FastAPI(title="Sistema de Asistencias")
 
 # Endpoint para subir el Excel
@@ -65,6 +85,16 @@ async def dashboard_api(id_prestador: int):
 
 app.mount("/ui", StaticFiles(directory="ui"), name="ui")
 
+@app.get("/api/departamentos")
+def obtener_departamentos():
+    conn = obtener_conexion()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT DISTINCT departamento FROM prestadores ORDER BY departamento")
+        return [row["departamento"] for row in cursor.fetchall()]
+    finally:
+        conn.close()
+
 @app.get("/api/prestadores-lista")
 def obtener_prestadores():
     conn = obtener_conexion()
@@ -93,39 +123,46 @@ def obtener_prestadores():
 def obtener_datos_seguimiento():
     conn = obtener_conexion()
     cursor = conn.cursor()
-    
+
     try:
-        # 1. Traer a todos los prestadores
-        cursor.execute("SELECT id_checador, nombre, departamento FROM prestadores")
-        prestadores = cursor.fetchall()
-        
-        resultado = []
-        
-        for p in prestadores:
-            p_id = p["id_checador"]
-            
-            # 2. Traer todos los registros de ese prestador ordenados por fecha
-            cursor.execute("SELECT fecha, horas_trabajadas, estatus FROM registros WHERE id_checador = ? ORDER BY fecha ASC", (p_id,))
-            registros_bd = cursor.fetchall()
-            
-            # 3. Calcular totales
-            horas_totales = sum([r["horas_trabajadas"] for r in registros_bd])
-            faltas = len([r for r in registros_bd if r["estatus"] == "Falta"])
-            justificantes = len([r for r in registros_bd if r["estatus"] == "Justificante"])
-            
-            # 4. Dar formato a la lista de registros
-            lista_registros = [{"fecha": r["fecha"], "horas": r["horas_trabajadas"], "estatus": r["estatus"]} for r in registros_bd]
-            
-            resultado.append({
-                "id": p_id,
-                "nombre": p["nombre"],
-                "departamento": p["departamento"],
-                "horas_totales": round(horas_totales, 2),
-                "faltas": faltas,
-                "justificantes": justificantes,
-                "registros": lista_registros
-            })
-            
+        # Consulta plana con JOIN — una sola ida a disco
+        cursor.execute('''
+            SELECT
+                p.id_checador, p.nombre, p.departamento,
+                r.fecha, r.horas_trabajadas, r.estatus
+            FROM prestadores p
+            LEFT JOIN registros r ON p.id_checador = r.id_checador
+            ORDER BY p.id_checador, r.fecha
+        ''')
+        filas = cursor.fetchall()
+
+        mapa = {}
+        for f in filas:
+            pid = f["id_checador"]
+            if pid not in mapa:
+                mapa[pid] = {
+                    "id": pid,
+                    "nombre": f["nombre"],
+                    "departamento": f["departamento"],
+                    "horas_totales": 0.0,
+                    "faltas": 0,
+                    "justificantes": 0,
+                    "registros": []
+                }
+            if f["fecha"] is not None:
+                h = f["horas_trabajadas"] or 0.0
+                est = f["estatus"] or "Asistencia"
+                mapa[pid]["horas_totales"] += h
+                if est == "Falta":
+                    mapa[pid]["faltas"] += 1
+                elif est == "Justificante":
+                    mapa[pid]["justificantes"] += 1
+                mapa[pid]["registros"].append({"fecha": f["fecha"], "horas": h, "estatus": est})
+
+        resultado = list(mapa.values())
+        for r in resultado:
+            r["horas_totales"] = round(r["horas_totales"], 2)
+
         return resultado
     finally:
         conn.close()

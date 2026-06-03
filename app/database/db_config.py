@@ -62,6 +62,11 @@ def inicializar_bd():
         )
     ''')
 
+# Índices de rendimiento
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_registros_checador_fecha ON registros(id_checador, fecha)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_registros_estatus ON registros(estatus)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_prestadores_depto ON prestadores(departamento)')
+
     conn.commit()
     conn.close()
 
