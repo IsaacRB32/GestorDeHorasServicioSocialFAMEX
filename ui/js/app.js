@@ -105,24 +105,28 @@ async function generarPDF() {
         datos.flatMap(p => p.registros.map(r => r.fecha))
     )].sort();
 
-    const diaHeaders = fechas.flatMap(f => {
-        const d   = new Date(f + 'T12:00:00');
-        const lbl = `${DIAS[d.getDay()]} ${d.getDate()}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-        return [`${lbl}\n(Real)`, `${lbl}\n(Rond)`];
+    // Opción A: una columna por día — Real y Rond en la misma celda "4.32 / 4.5h"
+    const diaHeaders = fechas.map(f => {
+        const d = new Date(f + 'T12:00:00');
+        return `${DIAS[d.getDay()]} ${d.getDate()}/${String(d.getMonth() + 1).padStart(2, '0')}\nReal / Rond`;
     });
-    const head = [['ID', 'NOMBRE', ...diaHeaders, 'TOTAL\nSEMANAL']];
+    const head = [['ID', 'NOMBRE', ...diaHeaders, 'TOTAL']];
 
-        const body = datos.map(p => {
+    const body = datos.map(p => {
         const row = [p.id, p.nombre];
         let total = 0;
         fechas.forEach(f => {
             const reg  = p.registros.find(r => r.fecha === f);
-            const real = reg ? reg.horas : 0;
-            const rond = redondearHoras(real);
-            row.push(real > 0 ? real.toFixed(2) : '—', rond > 0 ? String(rond) : '—');
-            total += rond;
+            const real = reg ? reg.horas : 0;   // valor exacto del servidor
+            const rond = redondearHoras(real);   // redondeo correcto en cliente
+            if (real > 0) {
+                row.push(`${real.toFixed(2)} / ${rond}h`);
+                total += rond;
+            } else {
+                row.push('—');
+            }
         });
-        row.push(total > 0 ? String(total) : '—');
+        row.push(total > 0 ? `${total}h` : '—');
         return row;
     });
 
@@ -139,7 +143,7 @@ async function generarPDF() {
         body,
         startY: 26,
         styles: {
-            fontSize: 7,
+            fontSize: 7.5,
             cellPadding: { top: 2, right: 3, bottom: 2, left: 3 },
             halign: 'center',
             valign: 'middle',
@@ -150,23 +154,22 @@ async function generarPDF() {
             fillColor: [15, 23, 42],
             textColor: [255, 255, 255],
             fontStyle: 'bold',
-            fontSize: 6.5
+            fontSize: 7
         },
         columnStyles: {
             0: { cellWidth: 12 },
-            1: { cellWidth: 40, halign: 'left' }
+            1: { cellWidth: 44, halign: 'left' }
         },
         alternateRowStyles: { fillColor: [248, 250, 252] },
-        // Pintar columnas "Redondeado" en azul pálido para distinguirlas
+        // Celdas con horas en verde; sin datos quedan neutras
         didParseCell(data) {
             if (data.section !== 'body') return;
-            const isRondCol = data.column.index > 1
-                && data.column.index % 2 === 1           // índice impar → columna Rond
-                && data.column.index < head[0].length - 1;
-            if (isRondCol) {
+            const isDataCol = data.column.index > 1 && data.column.index < head[0].length - 1;
+            if (isDataCol && String(data.cell.raw) !== '—') {
                 data.cell.styles.fillColor = data.row.index % 2 === 0
-                    ? [239, 246, 255]
-                    : [219, 234, 254];
+                    ? [240, 253, 244]   // green-50
+                    : [220, 252, 231];  // green-100
+                data.cell.styles.textColor = [22, 101, 52];
             }
         }
     });
