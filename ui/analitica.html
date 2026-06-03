@@ -2,242 +2,391 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Analítica Ejecutiva - FAMEX</title>
+    <title>Registro Semanal - FAMEX</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="css/style.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @media print {
+            @page { size: letter portrait; margin: 10mm 10mm; }
+            html, body { height: auto !important; margin: 0 !important; padding: 0 !important; }
+            body { background: #fff !important; }
+            main { height: auto !important; overflow: visible !important; }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+            #printHeader { display: block !important; text-align: center; margin-bottom: 6px; page-break-after: avoid; }
+            #printHeader h1 { font-size: 11pt; font-weight: 900; margin: 0; }
+            #printHeader p { font-size: 8pt; color: #555; margin: 1px 0 0; }
+
+            #printTable { 
+                display: table !important; 
+                width: 100%; 
+                border-collapse: collapse; 
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 0;
+                font-size: 7pt;
+            }
+            #printTable thead { display: table-header-group; }
+            #printTable tbody { display: table-row-group; }
+            #printTable tr { page-break-inside: avoid; }
+            
+            #printTable th, #printTable td { 
+                border: 0.5pt solid #333; 
+                padding: 2px 3px;
+                font-size: 7pt;
+                text-align: center;
+            }
+            #printTable th { 
+                background: #e2e8f0 !important; 
+                font-weight: 800; 
+                text-transform: uppercase; 
+                font-size: 6.5pt; 
+                letter-spacing: 0.3px;
+                padding: 2px 2px;
+            }
+            #printTable td.txt-left { text-align: left; font-size: 6.5pt; font-weight: 600; }
+            #printTable .depto-row td { 
+                background: #f1f5f9 !important; 
+                font-weight: 800; 
+                text-align: left; 
+                font-size: 6.5pt; 
+                text-transform: uppercase; 
+                letter-spacing: 0.5px; 
+                border-bottom: 1.5pt solid #333;
+                padding: 1.5px 2px;
+            }
+            #printTable .firma-col { width: 35mm; }
+        }
+    </style>
 </head>
 <body class="bg-gray-100 font-sans">
     <div class="flex h-screen">
-        <aside class="w-64 bg-slate-900 text-white p-6 shadow-xl z-10 flex flex-col">
+        <!-- Sidebar -->
+        <aside class="no-print w-64 bg-slate-900 text-white p-6 shadow-xl z-10 flex flex-col flex-shrink-0">
             <h1 class="text-xl font-bold mb-10 tracking-wider">FAMEX <span class="text-blue-400">Control</span></h1>
             <nav class="space-y-2 flex-1">
                 <a href="index.html" class="block py-2.5 px-4 rounded transition hover:bg-slate-700">Panel de Carga</a>
                 <a href="prestadores.html" class="block py-2.5 px-4 rounded transition hover:bg-slate-700">Directorio</a>
                 <a href="seguimiento.html" class="block py-2.5 px-4 rounded transition hover:bg-slate-700">Expedientes</a>
-                <a href="#" class="block py-2.5 px-4 rounded bg-blue-600 font-semibold shadow">Analítica Global</a>
+                <a href="#" class="block py-2.5 px-4 rounded bg-blue-600 font-semibold shadow">Registro Semanal</a>
             </nav>
         </aside>
 
         <main class="flex-1 p-8 overflow-y-auto">
-            <div class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-gray-100 flex flex-col lg:flex-row justify-between items-center gap-4">
-                <div>
-                    <h2 class="text-2xl font-black text-gray-800">Centro de Comando Ejecutivo</h2>
-                    <p class="text-sm text-gray-500 mt-1">Rendimiento general e indicadores de asistencia</p>
+            <!-- Header + Filtros -->
+            <div class="no-print bg-white p-6 rounded-xl shadow-sm mb-6 border border-gray-100">
+                <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
+                    <div>
+                        <h2 class="text-2xl font-black text-gray-800">Registro Semanal de Firmas</h2>
+                        <p class="text-sm text-gray-500 mt-1">Concentrado para recolección de firmas de conformidad</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <!-- Navegación de semana -->
+                        <div class="flex items-center bg-gray-50 p-1 rounded-lg border border-gray-200">
+                            <button onclick="cambiarSemana(-1)" class="px-3 py-1.5 bg-white rounded-md shadow-sm border border-gray-200 hover:bg-blue-50 hover:text-blue-600 font-bold transition text-sm">&lt;</button>
+                            <span id="labelSemana" class="font-bold text-sm text-gray-700 w-56 text-center px-2">—</span>
+                            <button onclick="cambiarSemana(1)" class="px-3 py-1.5 bg-white rounded-md shadow-sm border border-gray-200 hover:bg-blue-50 hover:text-blue-600 font-bold transition text-sm">&gt;</button>
+                        </div>
+                        <button onclick="window.print()"
+                            class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-5 rounded-xl transition shadow-lg shadow-emerald-200 flex items-center gap-2 text-sm transform hover:-translate-y-0.5">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
+                            Imprimir Registro Semanal
+                        </button>
+                    </div>
                 </div>
-                <div class="flex space-x-4">
-                    <input type="text" id="filtroNombre" placeholder="Buscar persona..." class="border border-gray-300 pl-4 py-2 rounded-lg w-56 focus:ring-2 focus:ring-blue-500">
-                    <select id="filtroDepto" class="border border-gray-300 p-2 rounded-lg bg-white focus:ring-2 focus:ring-blue-500">
-                        <option value="Todos">Toda la Feria (Global)</option>
+                <div class="flex flex-col sm:flex-row gap-3 mt-5 pt-5 border-t border-gray-100">
+                    <div class="relative flex-1">
+                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                        <input type="text" id="filtroNombre" placeholder="Buscar por nombre..."
+                            class="border border-gray-200 pl-10 pr-4 py-2.5 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    </div>
+                    <select id="filtroDepto" class="border border-gray-200 p-2.5 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-[200px]">
+                        <option value="Todos">Todos los departamentos</option>
                         <option value="LOGISTICA">Logística</option>
                         <option value="OPERACIONES">Operaciones</option>
                         <option value="COMERCIAL">Comercial</option>
                         <option value="PUBLICIDAD">Publicidad</option>
                         <option value="RELACIONES PUBLICAS">Relaciones Públicas</option>
+                        <option value="General">General</option>
                     </select>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6" id="kpiContainer">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-blue-500">
-                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Horas Totales Aportadas</h3>
-                    <p class="text-4xl font-black text-gray-800" id="kpiHoras">0</p>
-                </div>
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-green-500">
-                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Prestadores Activos</h3>
-                    <p class="text-4xl font-black text-gray-800" id="kpiActivos">0</p>
-                </div>
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 border-l-4 border-red-500">
-                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-1">Faltas Registradas</h3>
-                    <p class="text-4xl font-black text-gray-800" id="kpiFaltas">0</p>
-                </div>
+            <!-- Concentrado visual en pantalla -->
+            <div id="contenedorCards" class="no-print grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-5 mb-8"></div>
+            <div id="sinDatos" class="no-print hidden py-20 text-center">
+                <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" stroke-width="1" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <p class="text-gray-400 font-bold text-lg">Sin registros para esta semana</p>
+                <p class="text-gray-300 text-sm mt-1">Ajusta los filtros o navega a otra semana</p>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2">
-                    <h3 class="text-lg font-bold text-gray-800 mb-4">Rendimiento por Departamento (Horas)</h3>
-                    <div class="relative h-64">
-                        <canvas id="graficaDeptos"></canvas>
-                    </div>
-                </div>
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                    <h3 class="text-lg font-bold text-gray-800 mb-4">Distribución de Estatus</h3>
-                    <div class="relative h-64 flex justify-center">
-                        <canvas id="graficaEstatus"></canvas>
-                    </div>
-                </div>
+            <!-- Zona de impresión (oculta en pantalla, visible al imprimir) -->
+            <div id="printHeader" class="hidden print-only">
+                <h1>REGISTRO SEMANAL — SERVICIO SOCIAL (LUNES A VIERNES) — FAMEX</h1>
+                <p id="printRango"></p>
             </div>
-
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="bg-slate-50 p-4 border-b border-gray-200">
-                    <h3 class="text-lg font-bold text-gray-800">Top Rendimiento (Más cerca de su meta)</h3>
-                </div>
-                <table class="min-w-full text-left">
-                    <thead class="bg-gray-800 text-white text-xs uppercase tracking-wider">
-                        <tr>
-                            <th class="py-3 px-6">Posición</th>
-                            <th class="py-3 px-6">Prestador</th>
-                            <th class="py-3 px-6">Departamento</th>
-                            <th class="py-3 px-6 text-right">Progreso</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaRanking" class="divide-y divide-gray-200 bg-white">
-                        </tbody>
-                </table>
-            </div>
+            <table id="printTable" class="hidden print-only">
+                <thead>
+                    <tr>
+                        <th>No.</th>
+                        <th>Nombre</th>
+                        <th>L</th>
+                        <th>M</th>
+                        <th>M</th>
+                        <th>J</th>
+                        <th>V</th>
+                        <th>Horas</th>
+                        <th>Faltas</th>
+                        <th class="firma-col">Firma de conformidad</th>
+                    </tr>
+                </thead>
+                <tbody id="printBody"></tbody>
+            </table>
         </main>
     </div>
 
     <script>
         let datosGlobales = [];
-        let chartBarras = null;
-        let chartPastel = null;
+        // Semana activa: lunes de la semana actual
+        let lunesActivo = obtenerLunesDeHoy();
 
-        // 1. Descargamos la data más completa que ya tienes en el backend
-        async function inicializarDashboard() {
-            const res = await fetch('/api/seguimiento-datos');
-            datosGlobales = await response.json();
-            actualizarTablero(); // Dibuja todo la primera vez
+        const DIAS_LABEL = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
+        const DEPTO_BADGE = {
+            'LOGISTICA':           'bg-blue-100 text-blue-700 border-blue-200',
+            'OPERACIONES':         'bg-emerald-100 text-emerald-700 border-emerald-200',
+            'COMERCIAL':           'bg-violet-100 text-violet-700 border-violet-200',
+            'PUBLICIDAD':          'bg-amber-100 text-amber-700 border-amber-200',
+            'RELACIONES PUBLICAS': 'bg-pink-100 text-pink-700 border-pink-200',
+            'ADQUISICIONES':       'bg-cyan-100 text-cyan-700 border-cyan-200',
+            'General':             'bg-gray-100 text-gray-600 border-gray-200'
+        };
+
+        function obtenerLunesDeHoy() {
+            const hoy = new Date();
+            const dia = hoy.getDay();
+            const diff = dia === 0 ? -6 : 1 - dia;
+            const lun = new Date(hoy);
+            lun.setDate(hoy.getDate() + diff);
+            lun.setHours(0,0,0,0);
+            return lun;
         }
 
-        // 2. Escuchamos los filtros para que sea interactivo
-        document.getElementById('filtroDepto').addEventListener('change', actualizarTablero);
-        document.getElementById('filtroNombre').addEventListener('input', actualizarTablero);
-
-        function actualizarTablero() {
-            // Filtramos la data en el cliente (Rapidísimo)
-            const depto = document.getElementById('filtroDepto').value;
-            const nombre = document.getElementById('filtroNombre').value.toLowerCase();
-
-            const filtrados = datosGlobales.filter(p => {
-                const matchDepto = (depto === 'Todos' || p.departamento === depto);
-                const matchNombre = p.nombre.toLowerCase().includes(nombre);
-                return matchDepto && matchNombre;
-            });
-
-            calcularKPIs(filtrados);
-            dibujarGraficaBarras(filtrados);
-            dibujarGraficaPastel(filtrados);
-            dibujarRanking(filtrados);
-        }
-
-        function calcularKPIs(datos) {
-            let totalHoras = 0;
-            let totalFaltas = 0;
-
-            datos.forEach(p => {
-                totalHoras += p.horas_totales;
-                totalFaltas += p.faltas;
-            });
-
-            document.getElementById('kpiHoras').innerText = totalHoras.toFixed(1);
-            document.getElementById('kpiActivos').innerText = datos.length;
-            document.getElementById('kpiFaltas').innerText = totalFaltas;
-        }
-
-        function dibujarGraficaBarras(datos) {
-            // Agrupamos horas por departamento
-            const agrupado = {};
-            datos.forEach(p => {
-                if(!agrupado[p.departamento]) agrupado[p.departamento] = 0;
-                agrupado[p.departamento] += p.horas_totales;
-            });
-
-            const etiquetas = Object.keys(agrupado);
-            const valores = Object.values(agrupado);
-
-            if(chartBarras) chartBarras.destroy();
-
-            const ctx = document.getElementById('graficaDeptos').getContext('2d');
-            chartBarras = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: etiquetas,
-                    datasets: [{
-                        label: 'Horas Totales',
-                        data: valores,
-                        backgroundColor: '#3b82f6',
-                        borderRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } }
-                }
-            });
-        }
-
-        function dibujarGraficaPastel(datos) {
-            let asistencias = 0; let faltas = 0; let justificantes = 0;
-
-            datos.forEach(p => {
-                asistencias += (p.registros.filter(r => r.horas > 0).length);
-                faltas += p.faltas;
-                justificantes += p.justificantes;
-            });
-
-            if(chartPastel) chartPastel.destroy();
-
-            const ctx = document.getElementById('graficaEstatus').getContext('2d');
-            chartPastel = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Asistencias', 'Faltas', 'Justificados'],
-                    datasets: [{
-                        data: [asistencias, faltas, justificantes],
-                        backgroundColor: ['#10b981', '#ef4444', '#f59e0b'],
-                        borderWidth: 0
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false }
-            });
-        }
-
-        function dibujarRanking(datos) {
-            // Ordenamos a los prestadores por horas de mayor a menor y tomamos el Top 5
-            const ranking = [...datos].sort((a, b) => b.horas_totales - a.horas_totales).slice(0, 5);
-            const tbody = document.getElementById('tablaRanking');
-            tbody.innerHTML = '';
-
-            ranking.forEach((p, index) => {
-                let porcentaje = Math.min((p.horas_totales / 480) * 100, 100).toFixed(1);
-                
-                // Medalla de oro, plata o bronce visual para el Top 3
-                let posColor = index === 0 ? 'bg-yellow-400 text-white' : 
-                               index === 1 ? 'bg-gray-300 text-gray-800' : 
-                               index === 2 ? 'bg-amber-600 text-white' : 'bg-gray-100 text-gray-600';
-
-                tbody.innerHTML += `
-                    <tr class="hover:bg-gray-50 transition">
-                        <td class="py-3 px-6 whitespace-nowrap">
-                            <span class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${posColor}">${index + 1}</span>
-                        </td>
-                        <td class="py-3 px-6 font-bold text-gray-800">${p.nombre}</td>
-                        <td class="py-3 px-6 text-gray-500 text-sm">${p.departamento}</td>
-                        <td class="py-3 px-6 text-right">
-                            <div class="flex items-center justify-end">
-                                <span class="font-black text-blue-600 mr-2">${p.horas_totales}h</span>
-                                <span class="text-xs font-bold text-gray-400">(${porcentaje}%)</span>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        // --- Manejo de error por si se queda en una promesa (Fetch fix) ---
-        async function fetchInit() {
-            try {
-                const response = await fetch('/api/seguimiento-datos');
-                datosGlobales = await response.json();
-                actualizarTablero();
-            } catch (e) {
-                console.error("Aún procesando datos...", e);
+        function fechasSemana(lunes) {
+            const fechas = [];
+            for (let i = 0; i < 5; i++) {
+                const d = new Date(lunes);
+                d.setDate(lunes.getDate() + i);
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                fechas.push(`${y}-${m}-${dd}`);
             }
+            return fechas;
         }
-        
-        fetchInit();
+
+        function formatFechaCorta(isoStr) {
+            const d = new Date(isoStr + 'T12:00:00');
+            return `${d.getDate()}/${String(d.getMonth()+1).padStart(2,'0')}`;
+        }
+
+        function formatRangoSemana(lunes) {
+            const fs = fechasSemana(lunes);
+            const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+            const dL = new Date(fs[0] + 'T12:00:00');
+            const dV = new Date(fs[4] + 'T12:00:00');
+            return `Lun ${dL.getDate()} — Vie ${dV.getDate()} de ${meses[dV.getMonth()]} ${dV.getFullYear()}`;
+        }
+
+        function cambiarSemana(dir) {
+            lunesActivo.setDate(lunesActivo.getDate() + dir * 7);
+            renderizar();
+        }
+
+        function redondearHoras(h) {
+            const ent = Math.floor(h);
+            const dec = h - ent;
+            if (Math.abs(dec - 0.5) < 1e-9) return ent + 0.5;
+            if (dec < 0.5) return ent;
+            return ent + 1;
+        }
+
+        function obtenerDiaSemana(prestador, fechaISO) {
+            const reg = prestador.registros.find(r => r.fecha === fechaISO);
+            if (!reg) return { valor: '—', tipo: 'vacio' };
+            if (reg.estatus === 'Falta')        return { valor: 'F', tipo: 'falta' };
+            if (reg.estatus === 'Justificante')  return { valor: 'J', tipo: 'justificante' };
+            if (reg.horas > 0)                   return { valor: redondearHoras(reg.horas), tipo: 'asistencia' };
+            return { valor: '—', tipo: 'vacio' };
+        }
+
+        function contarFaltasSemana(prestador, fechas) {
+            return fechas.reduce((n, f) => {
+                const d = obtenerDiaSemana(prestador, f);
+                return n + (d.tipo === 'falta' ? 1 : 0);
+            }, 0);
+        }
+
+        function horasSemana(prestador, fechas) {
+            return fechas.reduce((sum, f) => {
+                const d = obtenerDiaSemana(prestador, f);
+                return sum + (d.tipo === 'asistencia' ? d.valor : 0);
+            }, 0);
+        }
+
+        // ============ CARGA ============
+        async function cargar() {
+            try {
+                const res = await fetch('/api/seguimiento-datos');
+                datosGlobales = await res.json();
+            } catch(e) { datosGlobales = []; }
+            renderizar();
+        }
+
+        // ============ FILTRAR ============
+        function filtrar() {
+            const txt   = document.getElementById('filtroNombre').value.toLowerCase().trim();
+            const depto = document.getElementById('filtroDepto').value;
+            return datosGlobales.filter(p => {
+                const mN = p.nombre.toLowerCase().includes(txt);
+                const mD = depto === 'Todos' || p.departamento === depto;
+                return mN && mD;
+            });
+        }
+
+        // ============ RENDERIZAR ============
+        function renderizar() {
+            const semana = fechasSemana(lunesActivo);
+            document.getElementById('labelSemana').innerText = formatRangoSemana(lunesActivo);
+
+            const datos = filtrar();
+            renderCards(datos, semana);
+            renderPrint(datos, semana);
+        }
+
+        function celdaDiaClase(tipo) {
+            if (tipo === 'asistencia')   return 'bg-green-50 text-green-700 border-green-200';
+            if (tipo === 'falta')        return 'bg-red-50 text-red-600 border-red-200';
+            if (tipo === 'justificante') return 'bg-amber-50 text-amber-600 border-amber-200';
+            return 'bg-gray-50 text-gray-300 border-gray-200';
+        }
+
+        function renderCards(datos, semana) {
+            const cont = document.getElementById('contenedorCards');
+            const vacio = document.getElementById('sinDatos');
+
+            if (!datos.length) { cont.innerHTML = ''; vacio.classList.remove('hidden'); return; }
+            vacio.classList.add('hidden');
+
+            // Agrupar por departamento
+            const grupos = {};
+            datos.forEach(p => {
+                if (!grupos[p.departamento]) grupos[p.departamento] = [];
+                grupos[p.departamento].push(p);
+            });
+
+            let html = '';
+            for (const [depto, prestadores] of Object.entries(grupos)) {
+                prestadores.forEach(p => {
+                    const hs = horasSemana(p, semana);
+                    const fs = contarFaltasSemana(p, semana);
+                    const badgeCls = DEPTO_BADGE[depto] || DEPTO_BADGE['General'];
+
+                    let diasHtml = '';
+                    semana.forEach((f, i) => {
+                        const d = obtenerDiaSemana(p, f);
+                        const cls = celdaDiaClase(d.tipo);
+                        const display = d.tipo === 'asistencia' ? `${d.valor}<span class="text-[9px] opacity-60 ml-0.5">h</span>` : d.valor;
+                        diasHtml += `
+                            <div class="flex flex-col items-center">
+                                <span class="text-[10px] font-bold text-gray-400 mb-1">${DIAS_LABEL[i]} ${formatFechaCorta(f)}</span>
+                                <div class="w-12 h-12 rounded-lg border ${cls} flex items-center justify-center font-black text-sm">${display}</div>
+                            </div>`;
+                    });
+
+                    html += `
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+                        <div class="p-4 flex items-center justify-between border-b border-gray-50">
+                            <div class="flex items-center gap-3">
+                                <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-slate-100 text-sm font-black text-slate-600 border border-slate-200">${p.id}</span>
+                                <div>
+                                    <h4 class="font-black text-gray-800 text-sm leading-tight">${p.nombre}</h4>
+                                    <span class="inline-block mt-1 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider border ${badgeCls}">${depto}</span>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xl font-black text-gray-800">${p.horas_totales}<span class="text-xs font-medium text-gray-400 ml-0.5">h</span></div>
+                                <span class="text-[10px] font-bold text-gray-400 uppercase">Acumulado</span>
+                            </div>
+                        </div>
+                        <div class="p-4">
+                            <div class="flex justify-between gap-1.5">${diasHtml}</div>
+                            <div class="flex items-center gap-3 mt-3 pt-3 border-t border-gray-50">
+                                <div class="flex items-center gap-1.5 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-100">
+                                    <span class="text-[10px] font-bold text-blue-500 uppercase">Semana:</span>
+                                    <span class="font-black text-blue-700 text-sm">${hs}h</span>
+                                </div>
+                                ${fs > 0 ? `
+                                <div class="flex items-center gap-1.5 bg-red-50 px-2.5 py-1 rounded-lg border border-red-100">
+                                    <span class="text-[10px] font-bold text-red-500 uppercase">Faltas:</span>
+                                    <span class="font-black text-red-700 text-sm">${fs}</span>
+                                </div>` : `
+                                <div class="flex items-center gap-1.5 bg-green-50 px-2.5 py-1 rounded-lg border border-green-100">
+                                    <span class="text-[10px] font-bold text-green-600">Asistencia perfecta</span>
+                                </div>`}
+                            </div>
+                        </div>
+                    </div>`;
+                });
+            }
+            cont.innerHTML = html;
+        }
+
+        // ============ TABLA DE IMPRESIÓN ============
+        function renderPrint(datos, semana) {
+            document.getElementById('printRango').innerText = formatRangoSemana(lunesActivo);
+
+            const tbody = document.getElementById('printBody');
+
+            // Agrupar por departamento
+            const grupos = {};
+            datos.forEach(p => {
+                if (!grupos[p.departamento]) grupos[p.departamento] = [];
+                grupos[p.departamento].push(p);
+            });
+
+            let html = '';
+            for (const [depto, prestadores] of Object.entries(grupos)) {
+                html += `<tr class="depto-row"><td colspan="10">${depto}</td></tr>`;
+                prestadores.forEach(p => {
+                    const hs = horasSemana(p, semana);
+                    const faltasSem = contarFaltasSemana(p, semana);
+                    html += `<tr>
+                        <td>${p.id}</td>
+                        <td class="txt-left" style="white-space:nowrap">${p.nombre}</td>`;
+                    semana.forEach(f => {
+                        const d = obtenerDiaSemana(p, f);
+                        let txt = d.valor;
+                        if (d.tipo === 'asistencia') txt = d.valor;
+                        else if (d.tipo === 'falta') txt = 'F';
+                        else if (d.tipo === 'justificante') txt = 'J';
+                        else txt = '';
+                        html += `<td>${txt}</td>`;
+                    });
+                    html += `<td><b>${p.horas_totales}</b></td>
+                             <td>${p.faltas}</td>
+                             <td class="firma-col"></td></tr>`;
+                });
+            }
+            tbody.innerHTML = html;
+        }
+
+        // ============ LISTENERS ============
+        document.getElementById('filtroNombre').addEventListener('input', renderizar);
+        document.getElementById('filtroDepto').addEventListener('change', renderizar);
+
+        cargar();
     </script>
 </body>
 </html>
