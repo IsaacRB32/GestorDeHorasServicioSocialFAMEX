@@ -116,11 +116,12 @@ async function generarPDF() {
         const row = [p.id, p.nombre];
         let total = 0;
         fechas.forEach(f => {
-            const reg  = p.registros.find(r => r.fecha === f);
-            const real = reg ? reg.horas : 0;   // valor exacto del servidor
-            const rond = redondearHoras(real);   // redondeo correcto en cliente
-            if (real > 0) {
-                row.push(`${real.toFixed(2)} / ${rond}h`);
+            const reg    = p.registros.find(r => r.fecha === f);
+            // horas_exactas viene del upload; horas es el fallback (ya redondeado) para datos históricos
+            const exacto = reg ? (reg.horas_exactas ?? reg.horas) : 0;
+            const rond   = redondearHoras(exacto);
+            if (exacto > 0) {
+                row.push(`${exacto.toFixed(2)} / ${rond}h`);
                 total += rond;
             } else {
                 row.push('—');
@@ -178,4 +179,4 @@ async function generarPDF() {
 }
 
 // Cargar la tabla al iniciar la página
-document.addEventListener('DOMContentLoaded', cargarTablaEstado);
+document.addEventListener('DOMContentLoaded', cargarTablaEstado);   

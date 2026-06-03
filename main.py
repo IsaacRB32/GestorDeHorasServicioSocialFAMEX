@@ -41,7 +41,11 @@ async def upload_reporte(file: UploadFile = File(...)):
         pid = reg["id_checador"]
         if pid not in grupos:
             grupos[pid] = []
-        grupos[pid].append({"fecha": reg["fecha"], "horas": reg["horas"]})
+        grupos[pid].append({
+            "fecha": reg["fecha"],
+            "horas": reg["horas"],
+            "horas_exactas": reg.get("horas_exactas", reg["horas"])
+        })
 
     tabla_pdf = [
         {"id": pid, "nombre": nombre_map.get(pid, f"ID {pid}"), "registros": regs}

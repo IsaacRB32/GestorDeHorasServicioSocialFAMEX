@@ -38,8 +38,7 @@
 
             <h2 class="text-2xl font-bold text-gray-800 mb-6">Migrar Datos Históricos</h2>
             <div class="bg-white p-6 rounded-xl shadow-md mb-8 border-l-4 border-amber-500">
-                <p class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Formato legado (seguimiento.xlsx — hoja "SS 2026")</p>
-                <p class="text-xs text-gray-500 mb-4">Registra en masa a todos los prestadores y su historial mensual. Usa INSERT OR REPLACE, es seguro ejecutarlo múltiples veces.</p>
+                <p class="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">Formato legado ("SS 2026")</p>
                 <input type="file" id="archivoHistorico" accept=".xlsx" class="mb-4 block w-full text-sm text-gray-500"/>
                 <button onclick="migrarHistorico()" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-6 rounded-lg transition shadow-md shadow-amber-200">Migrar Histórico</button>
                 <p id="migracionStatus" class="mt-3 text-sm"></p>

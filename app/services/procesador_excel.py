@@ -55,7 +55,8 @@ def procesar_reporte_asistencia(ruta_excel):
                     partes = tiempo_str.split('\n')
                     entrada, salida = None, None
                     horas = 0.0
-                    
+                    horas_exactas = 0.0          # ← inicializar FUERA del try
+
                     if len(partes) == 2:
                         entrada, salida = partes[0].strip(), partes[1].strip()
                         try:
@@ -67,13 +68,14 @@ def procesar_reporte_asistencia(ruta_excel):
                             pass
                     elif len(partes) == 1:
                         entrada = partes[0].strip()
-                        
+
                     registros_limpios.append({
                         "id_checador": id_checador,
-                        "fecha": f"2026-05-{int(float(fecha_dia)):02d}", 
+                        "fecha": f"2026-05-{int(float(fecha_dia)):02d}",
                         "entrada": entrada,
                         "salida": salida,
-                        "horas": horas
+                        "horas": horas,
+                        "horas_exactas": horas_exactas   # ← propagar el valor sin redondear
                     })
                     
     # Ahora devolvemos ambas cosas: los prestadores nuevos y sus registros
