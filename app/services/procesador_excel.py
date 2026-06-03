@@ -83,3 +83,4 @@ def procesar_reporte_asistencia(ruta_excel):
         "prestadores": list(prestadores_encontrados.values()), 
         "registros": registros_limpios
     }
+

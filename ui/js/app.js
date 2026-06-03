@@ -110,24 +110,29 @@ async function generarPDF() {
         const d = new Date(f + 'T12:00:00');
         return `${DIAS[d.getDay()]} ${d.getDate()}/${String(d.getMonth() + 1).padStart(2, '0')}\nReal / Rond`;
     });
-    const head = [['ID', 'NOMBRE', ...diaHeaders, 'TOTAL']];
+    const head = [['ID', 'NOMBRE', ...diaHeaders, 'TOTAL\nReal / Rond']];
 
     const body = datos.map(p => {
         const row = [p.id, p.nombre];
-        let total = 0;
+        let totalReal = 0;
+        let totalRond = 0;
         fechas.forEach(f => {
-            const reg    = p.registros.find(r => r.fecha === f);
-            // horas_exactas viene del upload; horas es el fallback (ya redondeado) para datos históricos
-            const exacto = reg ? (reg.horas_exactas ?? reg.horas) : 0;
-            const rond   = redondearHoras(exacto);
-            if (exacto > 0) {
-                row.push(`${exacto.toFixed(2)} / ${rond}h`);
-                total += rond;
+            const reg  = p.registros.find(r => r.fecha === f);
+            const real = reg ? (reg.horas_exactas ?? reg.horas) : 0;
+            const rond = redondearHoras(real);
+            if (real > 0) {
+                row.push(`${real.toFixed(2)} / ${rond}h`);
+                totalReal += real;
+                totalRond += rond;
             } else {
                 row.push('—');
             }
         });
-        row.push(total > 0 ? `${total}h` : '—');
+        if (totalReal > 0) {
+            row.push(`${totalReal.toFixed(2)} / ${totalRond}h`);
+        } else {
+            row.push('—');
+        }
         return row;
     });
 
