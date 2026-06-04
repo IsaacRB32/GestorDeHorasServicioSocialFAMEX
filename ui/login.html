@@ -9,6 +9,27 @@
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
             min-height: 100vh;
         }
+        #loginContainer {
+            transition-property: opacity, transform;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 500ms;
+        }
+        @keyframes fadeSlideUp {
+            from { opacity: 0; transform: translateY(30px) scale(0.97); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes fadeSlideRight {
+            from { opacity: 0; transform: translateX(40px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        .anim-form  { animation: fadeSlideUp 0.7s cubic-bezier(0.16,1,0.3,1) both; }
+        .anim-image { animation: fadeSlideRight 0.9s cubic-bezier(0.16,1,0.3,1) 0.2s both; }
+        @keyframes checkPop {
+            0%   { transform: scale(0) rotate(-45deg); opacity: 0; }
+            60%  { transform: scale(1.2) rotate(0deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+        .anim-check { animation: checkPop 0.5s cubic-bezier(0.16,1,0.3,1) both; }
     </style>
     <script>
         // Si ya tiene sesión, redirigir directo
@@ -17,19 +38,24 @@
         }
     </script>
 </head>
-<body class="flex items-center justify-center p-4">
+<body class="min-h-screen">
 
-    <div class="w-full max-w-md">
-        <!-- Logo -->
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-black text-white tracking-wider">
-                FAMEX <span class="text-blue-400">Control</span>
-            </h1>
-            <p class="text-slate-400 text-sm mt-2">Sistema de Gestión de Servicio Social</p>
-        </div>
+    <div id="loginContainer" class="grid grid-cols-1 lg:grid-cols-2 h-screen transition-all duration-500 ease-in-out">
 
-        <!-- Card -->
-        <div class="bg-white rounded-2xl shadow-2xl p-8">
+        <!-- Columna 1: Formulario -->
+        <div class="flex items-center justify-center p-6 sm:p-12">
+            <div class="w-full max-w-md anim-form">
+
+                <!-- Logo -->
+                <div class="text-center mb-8">
+                    <h1 class="text-3xl font-black text-white tracking-wider">
+                        FAMEX <span class="text-blue-400">Control</span>
+                    </h1>
+                    <p class="text-slate-400 text-sm mt-2">Sistema de Gestión de Servicio Social</p>
+                </div>
+
+                <!-- Card -->
+                <div class="bg-white rounded-2xl shadow-2xl p-8">
             <h2 class="text-xl font-black text-gray-800 mb-1">Iniciar Sesión</h2>
             <p class="text-sm text-gray-400 mb-6">Ingresa tus credenciales de administrador</p>
 
@@ -40,7 +66,7 @@
                         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0"/>
                         </svg>
-                        <input type="text" id="inputUsuario" placeholder="admin"
+                        <input type="text" id="inputUsuario" placeholder="usuario"
                             class="border-2 border-gray-200 focus:border-blue-500 pl-11 pr-4 py-3 rounded-xl w-full font-bold text-gray-800 bg-gray-50 focus:outline-none focus:bg-white transition-colors">
                     </div>
                 </div>
@@ -60,6 +86,19 @@
             <!-- Error -->
             <div id="loginError" class="hidden mt-4 bg-red-50 border-2 border-red-200 text-red-700 text-sm font-bold rounded-xl p-3 text-center"></div>
 
+            <!-- Bienvenida (oculto hasta login exitoso) -->
+            <div id="loginExito" class="hidden mt-4 bg-emerald-50 border-2 border-emerald-200 rounded-xl p-4 text-center">
+                <div class="flex items-center justify-center gap-2">
+                    <div id="checkIcon" class="w-8 h-8 bg-emerald-500 rounded-full flex items-center justify-center anim-check">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
+                        </svg>
+                    </div>
+                    <span class="text-emerald-700 font-black text-sm">¡Bienvenido, Administrador!</span>
+                </div>
+                <p class="text-emerald-500 text-xs mt-1">Redirigiendo al panel...</p>
+            </div>
+
             <button onclick="iniciarSesion()" id="btnLogin"
                 class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition shadow-lg shadow-blue-200 text-sm transform hover:-translate-y-0.5">
                 Ingresar al Sistema
@@ -67,8 +106,27 @@
         </div>
 
         <p class="text-center text-slate-500 text-xs mt-6">
-            Acceso restringido · Solo personal autorizado
-        </p>
+                    Acceso restringido · Solo personal autorizado
+                </p>
+            </div>
+        </div>
+
+        <!-- Columna 2: Imagen corporativa -->
+        <div class="hidden lg:block relative overflow-hidden anim-image">
+            <img src="assets/imagen_login_famex2026.jpg"
+                 alt="FAMEX 2026"
+                 class="w-full h-full object-cover">
+            <div class="absolute inset-0 bg-gradient-to-l from-transparent to-slate-900/40"></div>
+            <div class="absolute bottom-8 left-8 right-8 text-white">
+                <h2 class="text-2xl font-black mb-2 drop-shadow-lg">
+                    Feria Aeroespacial México 2027
+                </h2>
+                <p class="text-sm text-white/80 drop-shadow">
+                    Control integral de servicio social y asistencias
+                </p>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -109,7 +167,32 @@
                 if (res.ok && data.token) {
                     localStorage.setItem('famex_token', data.token);
                     localStorage.setItem('famex_usuario', data.usuario);
-                    window.location.href = 'index.html';
+
+                    // Ocultar error si estaba visible y mostrar bienvenida
+                    errorDiv.classList.add('hidden');
+                    document.getElementById('loginExito').classList.remove('hidden');
+
+                    // Deshabilitar formulario visualmente
+                    btn.innerText = 'Acceso concedido';
+                    btn.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'shadow-blue-200');
+                    btn.classList.add('bg-emerald-600', 'shadow-emerald-200', 'cursor-default');
+                    btn.disabled = true;
+
+                    // Pausa para apreciar el mensaje y luego animar salida
+                    setTimeout(function() {
+                        const container = document.getElementById('loginContainer');
+                        container.classList.add(
+                            '-translate-y-4',
+                            'opacity-0',
+                            'scale-95',
+                            'pointer-events-none'
+                        );
+
+                        setTimeout(function() {
+                            window.location.href = 'index.html';
+                        }, 500);
+                    }, 800);
+                    return;
                 } else {
                     errorDiv.innerText = data.detail || 'Credenciales incorrectas';
                     errorDiv.classList.remove('hidden');
