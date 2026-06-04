@@ -9,6 +9,7 @@ from app.database.crud import obtener_resumen_prestador, guardar_registros_diari
 from app.services.procesador_excel import procesar_reporte_asistencia
 from app.database.db_config import inicializar_bd, obtener_conexion
 from pydantic import BaseModel
+import hashlib, secrets, time
 from app.database.crud import actualizar_estatus_dia, guardar_registros_historicos, eliminar_prestador
 from app.services.migrador_historico import procesar_seguimiento_historico
 
@@ -82,6 +83,10 @@ async def dashboard_api(id_prestador: int):
         progreso = (datos["total_hecho"] / datos["horas_obligatorias"]) * 100
         return {"id": id_prestador, "horas_acumuladas": round(datos["total_hecho"], 2), "progreso": round(progreso, 2)}
     return {"id": id_prestador, "horas_acumuladas": 0, "progreso": 0}
+
+@app.get("/")
+async def redirigir_login():
+    return RedirectResponse(url="/ui/login.html")
 
 app.mount("/ui", StaticFiles(directory="ui"), name="ui")
 
@@ -167,6 +172,43 @@ def obtener_datos_seguimiento():
         return resultado
     finally:
         conn.close()
+
+# ============ AUTENTICACIÓN ============
+ADMIN_USUARIO = "admin"
+ADMIN_CLAVE_HASH = hashlib.sha256("famex2026".encode()).hexdigest()
+_sesiones_activas = {}  # {token: {"usuario": str, "creado": float}}
+
+class LoginInput(BaseModel):
+    usuario: str
+    clave: str
+
+def verificar_token(token: str):
+    """Valida que el token exista y no haya expirado (8 horas)."""
+    sesion = _sesiones_activas.get(token)
+    if not sesion:
+        return False
+    if time.time() - sesion["creado"] > 28800:  # 8 horas
+        del _sesiones_activas[token]
+        return False
+    return True
+
+@app.post("/api/login")
+async def login(datos: LoginInput):
+    clave_hash = hashlib.sha256(datos.clave.encode()).hexdigest()
+    if datos.usuario != ADMIN_USUARIO or clave_hash != ADMIN_CLAVE_HASH:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
+    token = secrets.token_hex(32)
+    _sesiones_activas[token] = {"usuario": datos.usuario, "creado": time.time()}
+    return {"token": token, "usuario": datos.usuario}
+
+@app.post("/api/verificar-sesion")
+async def verificar_sesion_endpoint(request: dict):
+    token = request.get("token", "")
+    if verificar_token(token):
+        return {"valido": True}
+    from fastapi import HTTPException
+    raise HTTPException(status_code=401, detail="Sesión inválida")
 
 # 2. Define la estructura de datos que va a recibir
 class EdicionDia(BaseModel):
