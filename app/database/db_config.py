@@ -62,7 +62,13 @@ def inicializar_bd():
         )
     ''')
 
-# Índices de rendimiento
+    # Columna sexo (migración segura para BDs existentes)
+    try:
+        cursor.execute("ALTER TABLE prestadores ADD COLUMN sexo TEXT")
+    except sqlite3.OperationalError:
+        pass  # Ya existe
+
+    # Índices de rendimiento
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_registros_checador_fecha ON registros(id_checador, fecha)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_registros_estatus ON registros(estatus)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_prestadores_depto ON prestadores(departamento)')

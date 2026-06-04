@@ -2,14 +2,14 @@ import sqlite3
 from app.database.db_config import obtener_conexion
 
 # --- REQUERIMIENTO 1: Alta de Prestadores ---
-def registrar_prestador(id_checador, nombre, departamento, f_inicio, f_termino, horas_meta):
+def registrar_prestador(id_checador, nombre, departamento, f_inicio, f_termino, horas_meta, sexo=None):
     conn = obtener_conexion()
     cursor = conn.cursor()
     try:
         cursor.execute('''
-            INSERT INTO prestadores (id_checador, nombre, departamento, fecha_inicio, fecha_termino, horas_obligatorias)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (id_checador, nombre, departamento, f_inicio, f_termino, horas_meta))
+            INSERT INTO prestadores (id_checador, nombre, departamento, fecha_inicio, fecha_termino, horas_obligatorias, sexo)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (id_checador, nombre, departamento, f_inicio, f_termino, horas_meta, sexo))
         conn.commit()
     except sqlite3.IntegrityError:
         return False # El ID ya existe

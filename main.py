@@ -101,7 +101,7 @@ def obtener_prestadores():
     cursor = conn.cursor()
     try:
         # Añadimos 'departamento' a la consulta SQL
-        cursor.execute("SELECT id_checador, nombre, departamento, fecha_inicio, fecha_termino, horas_obligatorias FROM prestadores")
+        cursor.execute("SELECT id_checador, nombre, departamento, sexo, fecha_inicio, fecha_termino, horas_obligatorias FROM prestadores")
         rows = cursor.fetchall()
         
         lista_prestadores = [
@@ -109,6 +109,7 @@ def obtener_prestadores():
                 "id": row["id_checador"],
                 "nombre": row["nombre"],
                 "departamento": row["departamento"],
+                "sexo": row["sexo"] or "",
                 "fecha_inicio": row["fecha_inicio"] or "2026-01-01",
                 "fecha_termino": row["fecha_termino"] or "2026-07-01",
                 "horas_obligatorias": row["horas_obligatorias"] or 480
@@ -178,6 +179,7 @@ class PrestadorInput(BaseModel):
     id_checador: int
     nombre: str
     departamento: str
+    sexo: str = None
     fecha_inicio: str = "2026-01-01"
     fecha_termino: str = "2026-07-01"
     horas_obligatorias: int = 480
@@ -193,7 +195,8 @@ async def actualizar_dia(datos: EdicionDia):
 async def crear_prestador_api(datos: PrestadorInput):
     ok = registrar_prestador(
         datos.id_checador, datos.nombre, datos.departamento,
-        datos.fecha_inicio, datos.fecha_termino, datos.horas_obligatorias
+        datos.fecha_inicio, datos.fecha_termino, datos.horas_obligatorias,
+        datos.sexo
     )
     if not ok:
         from fastapi import HTTPException
@@ -206,9 +209,9 @@ async def actualizar_prestador_api(id_checador: int, datos: PrestadorInput):
     cursor = conn.cursor()
     try:
         cursor.execute('''
-            UPDATE prestadores SET nombre = ?, departamento = ?, fecha_inicio = ?, fecha_termino = ?, horas_obligatorias = ?
+            UPDATE prestadores SET nombre = ?, departamento = ?, sexo = ?, fecha_inicio = ?, fecha_termino = ?, horas_obligatorias = ?
             WHERE id_checador = ?
-        ''', (datos.nombre, datos.departamento, datos.fecha_inicio, datos.fecha_termino, datos.horas_obligatorias, id_checador))
+        ''', (datos.nombre, datos.departamento, datos.sexo, datos.fecha_inicio, datos.fecha_termino, datos.horas_obligatorias, id_checador))
         conn.commit()
         if cursor.rowcount == 0:
             from fastapi import HTTPException

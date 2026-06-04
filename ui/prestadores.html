@@ -49,6 +49,12 @@
                     <option value="RELACIONES PUBLICAS">Relaciones Públicas</option>
                     <option value="General">General</option>
                 </select>
+                <select id="filtroSexo"
+                    class="border border-gray-200 p-2.5 rounded-xl bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm min-w-[140px]">
+                    <option value="Todos">Todos los sexos</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Femenino">Femenino</option>
+                </select>
                 <div class="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 px-4 py-2.5 rounded-xl border border-gray-100">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
                     <span class="font-bold text-gray-700" id="contadorTotal">0</span> registrados
@@ -63,6 +69,7 @@
                             <th class="py-3.5 px-6">ID Checador</th>
                             <th class="py-3.5 px-6">Nombre Completo</th>
                             <th class="py-3.5 px-6">Departamento</th>
+                            <th class="py-3.5 px-6 text-center">Sexo</th>
                             <th class="py-3.5 px-6 text-center">Meta (hrs)</th>
                             <th class="py-3.5 px-6 text-center w-32">Acciones</th>
                         </tr>
@@ -100,6 +107,16 @@
                     <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Nombre Completo</label>
                     <input type="text" id="inputNombre" placeholder="Ej: MARÍA LÓPEZ GARCÍA"
                         class="border-2 border-gray-200 focus:border-blue-500 p-3 rounded-xl w-full font-bold text-gray-800 bg-gray-50 focus:outline-none focus:bg-white transition-colors uppercase">
+                </div>
+                <!-- Sexo -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Sexo</label>
+                    <select id="inputSexo"
+                        class="border-2 border-gray-200 focus:border-blue-500 p-3 rounded-xl w-full font-bold text-gray-800 bg-gray-50 focus:outline-none focus:bg-white transition-colors">
+                        <option value="">— Seleccionar —</option>
+                        <option value="Masculino">Masculino</option>
+                        <option value="Femenino">Femenino</option>
+                    </select>
                 </div>
 
                 <!-- Departamento -->
@@ -205,10 +222,13 @@
             const txt   = document.getElementById('filtroNombre').value.toLowerCase().trim();
             const depto = document.getElementById('filtroDepto').value;
 
+            const sexo = document.getElementById('filtroSexo').value;
+
             const filtrados = listaPrestadores.filter(p => {
                 const matchN = p.nombre.toLowerCase().includes(txt);
                 const matchD = depto === 'Todos' || p.departamento === depto;
-                return matchN && matchD;
+                const matchS = sexo === 'Todos' || p.sexo === sexo;
+                return matchN && matchD && matchS;
             });
 
             document.getElementById('contadorTotal').innerText = listaPrestadores.length;
@@ -233,6 +253,13 @@
                     </td>
                     <td class="py-3.5 px-6 font-bold text-gray-800">${p.nombre}</td>
                     <td class="py-3.5 px-6">${badgeDepto(p.departamento)}</td>
+                    <td class="py-3.5 px-6 text-center text-sm">
+                        ${p.sexo
+                            ? `<span class="${p.sexo === 'Masculino'
+                                ? 'text-blue-600' : 'text-pink-600'} font-bold">${p.sexo === 'Masculino'
+                                ? 'M' : 'F'}</span>`
+                            : '<span class="text-gray-300">—</span>'}
+                    </td>
                     <td class="py-3.5 px-6 text-center font-bold text-gray-600">${p.horas_obligatorias}</td>
                     <td class="py-3.5 px-6">
                         <div class="flex items-center justify-center gap-2">
@@ -256,6 +283,7 @@
 
         document.getElementById('filtroNombre').addEventListener('input', aplicarFiltros);
         document.getElementById('filtroDepto').addEventListener('change', aplicarFiltros);
+        document.getElementById('filtroSexo').addEventListener('change', aplicarFiltros);
 
         // ============ MODAL CREAR / EDITAR ============
         function abrirEdicion(id) {
@@ -278,6 +306,7 @@
                 document.getElementById('inputId').classList.add('opacity-50', 'cursor-not-allowed');
                 document.getElementById('ayudaId').innerText   = 'El ID no se puede modificar';
                 document.getElementById('inputNombre').value   = datos.nombre;
+                document.getElementById('inputSexo').value     = datos.sexo || '';
                 document.getElementById('inputDepto').value    = datos.departamento;
                 document.getElementById('inputFInicio').value  = datos.fecha_inicio;
                 document.getElementById('inputFTermino').value = datos.fecha_termino;
@@ -290,6 +319,7 @@
                 document.getElementById('inputId').classList.remove('opacity-50', 'cursor-not-allowed');
                 document.getElementById('ayudaId').innerText     = 'Número único del reloj checador físico';
                 document.getElementById('inputNombre').value     = '';
+                document.getElementById('inputSexo').value       = '';
                 document.getElementById('inputDepto').value      = '';
                 document.getElementById('inputFInicio').value    = '2026-01-01';
                 document.getElementById('inputFTermino').value   = '2026-07-01';
@@ -311,18 +341,21 @@
             const id     = parseInt(document.getElementById('inputId').value);
             const nombre = document.getElementById('inputNombre').value.trim().toUpperCase();
             const depto  = document.getElementById('inputDepto').value;
+            const sexo   = document.getElementById('inputSexo').value;
             const fIni   = document.getElementById('inputFInicio').value;
             const fFin   = document.getElementById('inputFTermino').value;
             const meta   = parseInt(document.getElementById('inputMeta').value) || 480;
 
             if (!id || id <= 0)  { mostrarError('Ingresa un ID Checador válido'); return; }
             if (!nombre)         { mostrarError('Ingresa el nombre completo'); return; }
+            if (!sexo)           { mostrarError('Selecciona el sexo'); return; }
             if (!depto)          { mostrarError('Selecciona un departamento'); return; }
 
             const payload = {
                 id_checador: id,
                 nombre: nombre,
                 departamento: depto,
+                sexo: sexo,
                 fecha_inicio: fIni,
                 fecha_termino: fFin,
                 horas_obligatorias: meta
