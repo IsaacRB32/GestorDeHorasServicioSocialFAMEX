@@ -4,12 +4,15 @@ import math
 
 def redondear_horas(horas):
     entero  = math.floor(horas)
-    decimal = horas - entero
-    if abs(decimal - 0.5) < 1e-9:
-        return entero + 0.5
-    if decimal < 0.5:
+    decimal = round(horas - entero, 2)
+    if decimal <= 0.15:
         return float(entero)
-    return float(entero + 1)
+    elif decimal <= 0.50:
+        return entero + 0.5
+    elif decimal <= 0.65:
+        return entero + 0.5
+    else:
+        return float(entero + 1)
 
 def procesar_reporte_asistencia(ruta_excel):
     df = pd.read_excel(ruta_excel, sheet_name='Registros de asistencia', header=None)

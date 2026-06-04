@@ -66,9 +66,10 @@ async function subirExcel() {
 
 function redondearHoras(horas) {
     const entero  = Math.floor(horas);
-    const decimal = horas - entero;
-    if (Math.abs(decimal - 0.5) < 1e-9) return entero + 0.5;
-    if (decimal < 0.5) return entero;
+    const decimal = Math.round((horas - entero) * 100) / 100;
+    if (decimal <= 0.15) return entero;
+    if (decimal <= 0.50) return entero + 0.5;
+    if (decimal <= 0.65) return entero + 0.5;
     return entero + 1;
 }
 

@@ -217,9 +217,10 @@
 
         function redondearHoras(h) {
             const ent = Math.floor(h);
-            const dec = h - ent;
-            if (Math.abs(dec - 0.5) < 1e-9) return ent + 0.5;
-            if (dec < 0.5) return ent;
+            const dec = Math.round((h - ent) * 100) / 100;
+            if (dec <= 0.15) return ent;
+            if (dec <= 0.50) return ent + 0.5;
+            if (dec <= 0.65) return ent + 0.5;
             return ent + 1;
         }
 
