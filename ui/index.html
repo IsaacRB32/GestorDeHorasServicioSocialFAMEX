@@ -39,30 +39,6 @@
 
         </main>
     </div>
-    <script src="js/app.js?v=3"></script>
-    <script>
-    async function migrarHistorico() {
-        const input = document.getElementById('archivoHistorico');
-        const status = document.getElementById('migracionStatus');
-        if (!input.files.length) {
-            status.innerText = 'Selecciona el archivo seguimiento.xlsx primero.';
-            status.className = 'mt-3 text-sm font-medium text-red-600';
-            return;
-        }
-        const fd = new FormData();
-        fd.append('file', input.files[0]);
-        status.innerText = 'Migrando datos históricos...';
-        status.className = 'mt-3 text-sm font-medium text-blue-600';
-        try {
-            const res = await apiFetch('/api/migrar-historico', { method: 'POST', body: fd });
-            const r = await res.json();
-            status.innerText = `✓ ${r.prestadores_nuevos} prestadores nuevos · ${r.registros_insertados} registros insertados`;
-            status.className = 'mt-3 text-sm font-medium text-green-600';
-        } catch (e) {
-            status.innerText = 'Error durante la migración.';
-            status.className = 'mt-3 text-sm font-medium text-red-600';
-        }
-    }
-    </script>
+    <script src="js/app.js?v=4"></script>
 </body>
 </html> 

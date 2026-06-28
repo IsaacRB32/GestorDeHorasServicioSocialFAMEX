@@ -1,3 +1,7 @@
+/* ui/js/app.js — lógica del Dashboard (index.html): carga de reporte,
+ * tabla de estado, PDF semanal y migración histórica.
+ * redondearHoras() y apiFetch() son globales (ui/js/famex-ui.js). */
+
 let tablaPDFData = null;
 
 async function cargarTablaEstado() {
@@ -56,7 +60,6 @@ async function subirExcel() {
 
     tablaPDFData = (result.tabla_pdf && result.tabla_pdf.length > 0) ? result.tabla_pdf : null;
 
-    // Mostrar botón siempre que haya procesado algo — usa style inline para ganar sobre cualquier clase CSS
     if (result.procesados > 0) {
         document.getElementById('btnDescargarPDF').style.display = 'flex';
     }
@@ -64,19 +67,11 @@ async function subirExcel() {
     cargarTablaEstado();
 }
 
-function redondearHoras(horas) {
-    const entero  = Math.floor(horas);
-    const decimal = Math.round((horas - entero) * 100) / 100;
-    if (decimal <= 0.15) return entero;
-    if (decimal <= 0.50) return entero + 0.5;
-    if (decimal <= 0.65) return entero + 0.5;
-    return entero + 1;
-}
+// redondearHoras() vive en ui/js/famex-ui.js (window.redondearHoras).
 
 async function generarPDF() {
     let datos = tablaPDFData;
 
-    // Fallback: si no hay datos del upload, los pedimos al servidor
     if (!datos || datos.length === 0) {
         try {
             const res = await apiFetch('/api/seguimiento-datos');
@@ -101,12 +96,10 @@ async function generarPDF() {
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
-    // Fechas únicas ordenadas presentes en el reporte
     const fechas = [...new Set(
         datos.flatMap(p => p.registros.map(r => r.fecha))
     )].sort();
 
-    // Opción A: una columna por día — Real y Rond en la misma celda "4.32 / 4.5h"
     const diaHeaders = fechas.map(f => {
         const d = new Date(f + 'T12:00:00');
         return `${DIAS[d.getDay()]} ${d.getDate()}/${String(d.getMonth() + 1).padStart(2, '0')}\nReal / Rond`;
@@ -137,7 +130,6 @@ async function generarPDF() {
         return row;
     });
 
-    // Título
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(13);
     doc.text('Resumen Semanal de Asistencias — FAMEX Control', 14, 14);
@@ -168,14 +160,13 @@ async function generarPDF() {
             1: { cellWidth: 44, halign: 'left' }
         },
         alternateRowStyles: { fillColor: [248, 250, 252] },
-        // Celdas con horas en verde; sin datos quedan neutras
         didParseCell(data) {
             if (data.section !== 'body') return;
             const isDataCol = data.column.index > 1 && data.column.index < head[0].length - 1;
             if (isDataCol && String(data.cell.raw) !== '—') {
                 data.cell.styles.fillColor = data.row.index % 2 === 0
-                    ? [240, 253, 244]   // green-50
-                    : [220, 252, 231];  // green-100
+                    ? [240, 253, 244]
+                    : [220, 252, 231];
                 data.cell.styles.textColor = [22, 101, 52];
             }
         }
@@ -184,5 +175,32 @@ async function generarPDF() {
     doc.save(`resumen_semanal_FAMEX_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
-// Cargar la tabla al iniciar la página
-document.addEventListener('DOMContentLoaded', cargarTablaEstado);   
+// ============ MIGRACIÓN HISTÓRICA (antes inline en index.html) ============
+async function migrarHistorico() {
+    const input = document.getElementById('archivoHistorico');
+    const status = document.getElementById('migracionStatus');
+    if (!input.files.length) {
+        status.innerText = 'Selecciona el archivo seguimiento.xlsx primero.';
+        status.className = 'mt-3 text-sm font-medium text-red-600';
+        return;
+    }
+    const fd = new FormData();
+    fd.append('file', input.files[0]);
+    status.innerText = 'Migrando datos históricos...';
+    status.className = 'mt-3 text-sm font-medium text-blue-600';
+    try {
+        const res = await apiFetch('/api/migrar-historico', { method: 'POST', body: fd });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || `Error del servidor (${res.status})`);
+        }
+        const r = await res.json();
+        status.innerText = `✓ ${r.prestadores_nuevos} prestadores nuevos · ${r.registros_insertados} registros insertados`;
+        status.className = 'mt-3 text-sm font-medium text-green-600';
+    } catch (e) {
+        status.innerText = `Error durante la migración: ${e.message}`;
+        status.className = 'mt-3 text-sm font-medium text-red-600';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', cargarTablaEstado);

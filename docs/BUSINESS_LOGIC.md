@@ -7,7 +7,7 @@
 ## 1. Redondeo de horas
 
 **Ubicación canónica:** `app/services/procesador_excel.py::redondear_horas`
-**Replicado en cliente:** `ui/js/app.js::redondearHoras`
+**Replicado en cliente:** `ui/js/famex-ui.js::window.redondearHoras` (única copia cliente, compartida por todas las vistas)
 
 ### 1.1. Algoritmo exacto
 
@@ -205,7 +205,7 @@ Cuando se recibe un departamento nuevo no listado, se mantiene tal cual (en `MAY
 - Detecta cada **bloque de alumno** buscando filas donde la celda 0 sea exactamente `"ID."`.
 - Extrae `id_checador` (celda 1), `nombre` (después de la palabra `"Nombre"` en la misma fila) y `departamento` (después de `"Depart."`).
 - Asume que las dos filas siguientes (`i+1` y `i+3`) contienen respectivamente las fechas (números de día) y los rangos `HH:MM\nHH:MM` (entrada/salida) para 5 columnas.
-- **Fecha hard‑codeada:** `f"2026-05-{int(float(fecha_dia)):02d}"`. Esto asume reportes de **mayo 2026**. Para soportar otros meses se requiere parametrización (pendiente).
+- **Fecha dinámica:** el periodo se detecta del encabezado `Fecha: DD/MM/YYYY ~ DD/MM/YYYY` (`_detectar_periodo`). `_construir_fecha(dia, ...)` arma cada `YYYY-MM-DD` y maneja semanas que cruzan de mes (si el número de día es menor al día de inicio, avanza al mes siguiente). Si no hay fecha en la hoja, cae a `datetime.now()`. Antes estaba hard-codeado a mayo 2026.
 - Calcula `horas_exactas = (salida - entrada).total_seconds() / 3600` y `horas = redondear_horas(horas_exactas)`.
 
 ### 7.2. Migración histórica (`procesar_seguimiento_historico`)

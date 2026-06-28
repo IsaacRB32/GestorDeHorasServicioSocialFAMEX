@@ -4,28 +4,27 @@
  *  2) Guardia de autenticación (redirige a login si no hay token).
  *  3) apiFetch(): wrapper de fetch que inyecta 'Authorization: Bearer <token>'
  *     y gestiona 401 globalmente.
- *  4) <famex-sidebar>: Web Component nativo que unifica el menú lateral.
+ *  4) redondearHoras(): única copia cliente del redondeo reglamentario.
+ *  5) <famex-sidebar>: Web Component nativo que unifica el menú lateral.
  *
  * Debe cargarse en el <head> INMEDIATAMENTE DESPUÉS del script CDN de Tailwind.
  */
 (function () {
   'use strict';
 
-  // ========================================================================
+  // ====================================================================
   // 1) CONFIGURACIÓN CENTRAL DE TAILWIND
-  // ========================================================================
+  // ====================================================================
   if (window.tailwind) {
     window.tailwind.config = {
       theme: {
         extend: {
           colors: {
-            // Acento de marca (azul corporativo unificado)
             brand: {
               50:  '#eef4ff', 100: '#dbe6fe', 200: '#bfd3fe', 300: '#93b4fd',
               400: '#608ffa', 500: '#3b6cf6', 600: '#2552eb', 700: '#1d40d8',
               800: '#1e3aaf', 900: '#1e368a',
             },
-            // Tinta / superficies oscuras (sidebar, headers)
             ink: { 600: '#334155', 700: '#1e293b', 800: '#0f172a', 900: '#0b1220' },
           },
           fontFamily: {
@@ -42,20 +41,20 @@
     };
   }
 
-  // ========================================================================
+  // ====================================================================
   // 2) GUARDIA DE AUTENTICACIÓN
-  // ========================================================================
+  // ====================================================================
   var ARCHIVO = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
   var ES_LOGIN = ARCHIVO === 'login.html' || ARCHIVO === '';
 
   if (!ES_LOGIN && !localStorage.getItem('famex_token')) {
     location.replace('login.html');
-    return; // No seguimos inicializando una página a la que no se debe acceder
+    return;
   }
 
-  // ========================================================================
+  // ====================================================================
   // 3) WRAPPER FETCH AUTENTICADO
-  // ========================================================================
+  // ====================================================================
   async function apiFetch(url, options) {
     options = options || {};
     var headers = new Headers(options.headers || {});
@@ -70,7 +69,6 @@
       throw new Error('No se pudo conectar con el servidor');
     }
 
-    // 401 global: token inválido/expirado → cerrar sesión (salvo en el login).
     var esLoginReq = String(url).indexOf('/api/login') !== -1;
     if (res.status === 401 && !esLoginReq) {
       localStorage.removeItem('famex_token');
@@ -82,16 +80,30 @@
   }
   window.apiFetch = apiFetch;
 
-  // Logout reutilizable (usado por el sidebar)
   window.famexLogout = function () {
     localStorage.removeItem('famex_token');
     localStorage.removeItem('famex_usuario');
     location.href = 'login.html';
   };
 
-  // ========================================================================
-  // 4) WEB COMPONENT <famex-sidebar>
-  // ========================================================================
+  // ====================================================================
+  // 4) REDONDEO DE HORAS — única copia cliente (réplica de
+  //    procesador_excel.py::redondear_horas).
+  //      decimal <= 0.15        -> piso
+  //      0.15 < decimal <= 0.65 -> media hora
+  //      decimal > 0.65         -> techo
+  // ====================================================================
+  window.redondearHoras = function (horas) {
+    var entero = Math.floor(horas);
+    var decimal = Math.round((horas - entero) * 100) / 100;
+    if (decimal <= 0.15) return entero;
+    if (decimal <= 0.65) return entero + 0.5;
+    return entero + 1;
+  };
+
+  // ====================================================================
+  // 5) WEB COMPONENT <famex-sidebar>
+  // ====================================================================
   var ICONOS = {
     carga: '<path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/>',
     directorio: '<path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/>',
@@ -103,7 +115,7 @@
     { key: 'carga',       label: 'Panel de Carga',   href: 'index.html' },
     { key: 'directorio',  label: 'Directorio',       href: 'prestadores.html' },
     { key: 'expedientes', label: 'Expedientes',      href: 'seguimiento.html' },
-    { key: 'analitica',   label: 'Analítica Global',  href: 'analitica.html' },
+    { key: 'analitica',   label: 'Analítica Global', href: 'analitica.html' },
   ];
 
   var ACTIVO_POR_ARCHIVO = {
@@ -120,11 +132,7 @@
   class FamexSidebar extends HTMLElement {
     connectedCallback() {
       var activo = this.getAttribute('active') || ACTIVO_POR_ARCHIVO[ARCHIVO] || '';
-
-      // El host ES el item flex del layout (no se usa Shadow DOM para que
-      // las utilidades de Tailwind del CDN apliquen con normalidad).
-      this.className = 'no-print w-64 flex-shrink-0 flex flex-col bg-gradient-to-b from-ink-800 to-ink-900 ' +
-                       'text-white p-5 shadow-sidebar z-10';
+      this.className = 'no-print w-64 flex-shrink-0 flex flex-col bg-gradient-to-b from-ink-800 to-ink-900 text-white p-5 shadow-sidebar z-10';
 
       var itemsHtml = NAV.map(function (item) {
         var esActivo = item.key === activo;
@@ -143,8 +151,7 @@
           '<p class="text-[11px] text-slate-400 mt-1.5 font-medium">Servicio Social 2026/2027</p>' +
         '</div>' +
         '<nav class="space-y-1.5 flex-1">' + itemsHtml + '</nav>' +
-        '<button type="button" onclick="famexLogout()" ' +
-          'class="mt-4 w-full py-2.5 px-4 rounded-xl text-sm font-bold text-slate-400 hover:text-white hover:bg-red-600/80 transition-all flex items-center gap-3">' +
+        '<button type="button" onclick="famexLogout()" class="mt-4 w-full py-2.5 px-4 rounded-xl text-sm font-bold text-slate-400 hover:text-white hover:bg-red-600/80 transition-all flex items-center gap-3">' +
           '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"/></svg>' +
           '<span>Cerrar Sesión</span>' +
         '</button>';

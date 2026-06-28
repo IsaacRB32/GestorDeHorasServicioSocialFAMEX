@@ -1,6 +1,6 @@
 # Frontend — Páginas y Flujos
 
-> Cada HTML en `ui/` importa Tailwind por CDN y, justo después, el **núcleo compartido `ui/js/famex-ui.js`**, que centraliza cuatro responsabilidades transversales: (1) la **configuración de tema de Tailwind** (paleta `brand`/`ink`, sombras `card`/`sidebar`, tipografía `Inter`), (2) la **guardia de autenticación** (redirige a `login.html` si no hay `localStorage.famex_token`), (3) el wrapper **`apiFetch()`** que inyecta `Authorization: Bearer <token>` y gestiona los 401 globalmente, y (4) el **Web Component `<famex-sidebar>`**. La lógica interactiva específica de cada vista sigue en scripts inline; el dashboard comparte además `ui/js/app.js`. No hay router cliente ni framework: la navegación es por `<a href>`.
+> Cada HTML en `ui/` importa Tailwind por CDN y, justo después, el **núcleo compartido `ui/js/famex-ui.js`**, que centraliza cuatro responsabilidades transversales: (1) la **configuración de tema de Tailwind** (paleta `brand`/`ink`, sombras `card`/`sidebar`, tipografía `Inter`), (2) la **guardia de autenticación** (redirige a `login.html` si no hay `localStorage.famex_token`), (3) el wrapper **`apiFetch()`** que inyecta `Authorization: Bearer <token>` y gestiona los 401 globalmente, y (4) el **Web Component `<famex-sidebar>`**. La lógica interactiva específica de cada vista vive en su propio módulo externo (`app.js`, `prestadores.js`, `seguimiento.js`, `analitica.js`); ya no inline en el HTML. No hay router cliente ni framework: la navegación es por `<a href>`.
 
 ---
 
@@ -50,7 +50,7 @@ Estructura compartida: todas (menos `login`) renderizan el menú lateral con una
 ### 3.2. Sección "Migrar Datos Históricos" (ámbar)
 
 - `<input type="file" id="archivoHistorico" accept=".xlsx">`
-- Botón `Migrar Histórico` → llama `migrarHistorico()` (script inline al final del HTML).
+- Botón `Migrar Histórico` → llama `migrarHistorico()` (en `ui/js/app.js`).
 - Tras éxito: muestra `✓ N prestadores nuevos · M registros insertados`.
 
 ### 3.3. Lógica relevante (`ui/js/app.js`)
@@ -91,7 +91,7 @@ Estructura compartida: todas (menos `login`) renderizan el menú lateral con una
 - **Tabla principal:** ID Checador, Nombre, Departamento, Sexo, Meta (hrs), Acciones (editar/borrar).
 - **Modal Crear/Editar** (`#modalCrear`) con campos: `id_checador` (deshabilitado en edición), `nombre`, `departamento` (`<select>`), `sexo`, `fecha_inicio`, `fecha_termino`, `horas_obligatorias`.
 
-### 4.2. Lógica (script inline en el HTML)
+### 4.2. Lógica (`ui/js/prestadores.js`)
 
 | Función | Endpoint | Notas |
 |---|---|---|
@@ -181,7 +181,7 @@ El CSS `@media print` en el `<head>` activa una vista limpia al imprimir:
 
 Único JS compartido (cargado por `index.html`). Sus 4 funciones (`cargarTablaEstado`, `subirExcel`, `redondearHoras`, `generarPDF`) están documentadas en §3.3 y §3.4.
 
-> **Nota:** las demás páginas (`prestadores`, `seguimiento`, `analitica`) **no importan `app.js`** — cada una tiene su lógica inline al final del HTML. Esta separación deliberada evita que `app.js` crezca como god‑object.
+> **Nota (Paso 4):** la lógica de cada vista vive ahora en su propio módulo externo (`ui/js/prestadores.js`, `ui/js/seguimiento.js`, `ui/js/analitica.js`), ya no inline en el HTML. Todas comparten `famex-ui.js` (tema, `apiFetch`, `redondearHoras`, `<famex-sidebar>`); solo el dashboard usa además `app.js`. La función `redondearHoras` tiene una **única** copia cliente (`window.redondearHoras`), eliminando las 3 duplicaciones previas.
 
 ---
 

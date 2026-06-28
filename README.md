@@ -36,7 +36,7 @@ Detalle completo de visión, módulos y flujos en [`docs/ARCHITECTURE.md`](docs/
 
 **Frontend (estático, sin build step)**
 - HTML5 vanilla — 5 páginas independientes (`login`, `index`, `prestadores`, `seguimiento`, `analitica`)
-- JavaScript clásico (sin framework, sin bundler) — `ui/js/app.js`
+- JavaScript clásico (sin framework, sin bundler) — núcleo compartido `ui/js/famex-ui.js` + un módulo por vista (`app.js`, `prestadores.js`, `seguimiento.js`, `analitica.js`)
 - [Tailwind CSS](https://tailwindcss.com/) vía CDN (`https://cdn.tailwindcss.com`) — utilidad de estilo
 - [jsPDF 2.5.1](https://github.com/parallax/jsPDF) + `jspdf-autotable 3.8.2` — generación cliente del PDF semanal
 - `@media print` nativo — hoja de firmas optimizada para impresión carta vertical
@@ -130,7 +130,11 @@ GestorDeHorasServicioSocialFAMEX/
 │   ├── seguimiento.html          # Calendario mensual editable + calculador manual
 │   ├── analitica.html            # Hoja de firmas imprimible
 │   ├── js/
-│   │   ├── app.js                # Lógica de upload, tabla de estado y PDF semanal
+│   │   ├── famex-ui.js           # Núcleo: tema Tailwind, apiFetch, redondearHoras, <famex-sidebar>
+│   │   ├── app.js                # Dashboard: upload, tabla de estado y PDF semanal
+│   │   ├── prestadores.js        # Lógica de la vista Directorio
+│   │   ├── seguimiento.js        # Lógica del calendario de Expedientes
+│   │   ├── analitica.js          # Lógica de la hoja de firmas
 │   │   └── chart.min.js          # Chart.js offline (dependencia opcional)
 │   ├── css/style.css             # CSS auxiliar (Tailwind viene por CDN)
 │   └── assets/                   # Imágenes (login background)
@@ -186,6 +190,6 @@ Explicación detallada de cada capa en [`docs/ARCHITECTURE.md`](docs/ARCHITECTUR
 
 - ~~`app/api/rutas.py` es un router legado no montado~~ ✅ **Resuelto:** endpoints migrados a `app/api/routers/` (`APIRouter`) y stub eliminado.
 - ~~Endpoints concentrados en `main.py`~~ ✅ **Resuelto:** `main.py` ahora solo arma la app (lifespan + include_router + estáticos).
-- La fecha hard‑codeada `2026-05-{dd}` en `procesador_excel.py` asume reportes de mayo 2026. Para reportes de otros meses requiere parametrización (pendiente — Paso 4).
+- ~~La fecha hard-codeada `2026-05-{dd}` en `procesador_excel.py`~~ ✅ **Resuelto (Paso 4):** el mes/año se detectan dinámicamente del encabezado `Fecha: DD/MM/YYYY ~ ...` del checador (`_detectar_periodo`), con manejo de semanas que cruzan de mes (`_construir_fecha`); degrada a la fecha actual si no se encuentra.
 - No hay logs persistentes ni auditoría de cambios en `registros`.
 - Tokens de sesión en memoria → cualquier reinicio expulsa a todos los usuarios. La API aún no exige `Bearer` (se activará junto al wrapper `fetch` del frontend, Paso 3).
