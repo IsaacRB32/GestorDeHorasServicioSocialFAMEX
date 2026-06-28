@@ -1,20 +1,185 @@
 # GestorDeHorasServicioSocialFAMEX
 
-/sistema_servicio_social
+Sistema Full‑Stack para centralizar, normalizar y controlar las **asistencias y horas de servicio social** de los prestadores **FAMEX 2026 / 2027**. Reemplaza el flujo manual basado en hojas de cálculo dispersas por una aplicación local con base de datos persistente, ingesta automatizada de reportes de checador, calendario editable, analítica por departamento y generación de hojas de firmas listas para imprimir.
+
+> **Audiencia de esta documentación:** desarrolladores u otras IAs que necesiten entender el 100 % del proyecto sin leer el código fuente. La documentación está distribuida en `docs/` y debe leerse en orden si se desea contexto profundo.
+
+---
+
+## 1. Visión general
+
+| Dimensión | Detalle |
+|---|---|
+| **Propósito** | Centralizar el control de horas de servicio social de FAMEX 2026/2027 en un único sistema con BD local, auditable y respaldable. |
+| **Usuario objetivo** | Administrador/coordinador de servicio social (rol único: `admin`). |
+| **Modelo de despliegue** | Aplicación monolítica local — backend FastAPI sirve también el frontend estático. Pensada para correr en una sola máquina del coordinador. |
+| **Estado de datos** | Persistente en SQLite (`data/asistencias.db`). Cada sesión arranca aplicando migraciones idempotentes y normalización de departamentos legacy. |
+| **Sesión activa** | Periodo FAMEX 2026/2027 (enero 2026 – julio 2026 por defecto), 480 horas obligatorias por prestador. |
+
+Detalle completo de visión, módulos y flujos en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+---
+
+## 2. Stack tecnológico
+
+**Backend**
+- Python 3.12+
+- [FastAPI 0.111](https://fastapi.tiangolo.com/) — API REST + servidor de estáticos
+- [Uvicorn 0.29](https://www.uvicorn.org/) — ASGI server
+- [Pandas 2.2](https://pandas.pydata.org/) — parsing de Excel (checador y seguimiento histórico)
+- [Openpyxl 3.1](https://openpyxl.readthedocs.io/) — engine de lectura `.xlsx` usado por Pandas
+- `sqlite3` (stdlib) — driver de base de datos
+- `hashlib`, `secrets`, `time` (stdlib) — autenticación SHA‑256 + tokens en memoria
+
+**Base de datos**
+- **SQLite local** — archivo plano en `data/asistencias.db`, creado automáticamente al arranque. No requiere servidor.
+
+**Frontend (estático, sin build step)**
+- HTML5 vanilla — 5 páginas independientes (`login`, `index`, `prestadores`, `seguimiento`, `analitica`)
+- JavaScript clásico (sin framework, sin bundler) — `ui/js/app.js`
+- [Tailwind CSS](https://tailwindcss.com/) vía CDN (`https://cdn.tailwindcss.com`) — utilidad de estilo
+- [jsPDF 2.5.1](https://github.com/parallax/jsPDF) + `jspdf-autotable 3.8.2` — generación cliente del PDF semanal
+- `@media print` nativo — hoja de firmas optimizada para impresión carta vertical
+
+---
+
+## 3. Ejecución local (quick start)
+
+### Requisitos previos
+- Python 3.12 o superior
+- `pip` disponible en el PATH
+- (Opcional) un entorno virtual
+
+### Instalación
+
+```bash
+# 1. Clonar e ingresar al proyecto
+git clone <repo-url> GestorDeHorasServicioSocialFAMEX
+cd GestorDeHorasServicioSocialFAMEX
+
+# 2. Crear y activar entorno virtual (opcional pero recomendado)
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
+
+# 3. Instalar dependencias
+pip install -r requirements.txt
+```
+
+### Arranque del servidor
+
+```bash
+# Modo desarrollo (autoreload)
+uvicorn main:app --reload --host 127.0.0.1 --port 8000
+
+# Modo producción local
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+Abrir el navegador en: **http://127.0.0.1:8000** → redirige automáticamente a `/ui/login.html`.
+
+### Credenciales por defecto
+| Campo | Valor |
+|---|---|
+| Usuario | `admin` |
+| Contraseña | `famex2026` |
+
+> El hash SHA‑256 de la clave está embebido en `main.py`. Para cambiarla en producción, modificar `ADMIN_CLAVE_HASH`.
+
+### Verificación funcional rápida (smoke test)
+1. **Login** → `admin` / `famex2026` debe redirigir a `index.html`.
+2. **Panel de Carga** → subir un Excel de checador con hoja `Registros de asistencia` → debe mostrar `¡Reporte cargado con éxito!` y habilitar el botón verde *Descargar Resumen PDF*.
+3. **Directorio** → debe listar al menos al prestador semilla `ALEXIA BERNAL` (id 1, LOGISTICA).
+4. **Expedientes** → seleccionar mes, hacer clic en un día del calendario, marcar `Falta` o `Asistencia con horas` → al cerrar el modal el día debe quedar coloreado.
+5. **Analítica Global** → vista de hoja de firmas; `Ctrl + P` debe mostrar layout limpio carta vertical sin sidebar.
+
+Detalle de pruebas por endpoint y flujo en [`docs/API.md`](docs/API.md) y [`docs/FRONTEND.md`](docs/FRONTEND.md).
+
+---
+
+## 4. Estructura del repositorio
+
+```
+GestorDeHorasServicioSocialFAMEX/
 │
-├── /app
-│   ├── /api            # Endpoints (FastAPI)
-│   ├── /database       # SQLite (Persistencia)
-│   └── /services       # Procesamiento de Excel (Pandas)
+├── main.py                       # Entrypoint FastAPI: monta /ui, define endpoints, auth, inicializa BD
+├── requirements.txt              # Dependencias Python pinneadas
+├── README.md                     # Este archivo (hub de documentación)
 │
-├── /ui                 # La cara "bonita" del sistema
-│   ├── index.html      # El Dashboard
-│   ├── /css
-│   │   └── style.css   # Archivo generado por Tailwind (Offline)
-│   ├── /js
-│   │   ├── main.js     # Lógica de comunicación con el backend
-│   │   └── chart.min.js # Librería descargada (Offline)
-│   └── /assets         # Logos e imágenes locales
+├── app/                          # Backend (lógica del servidor)
+│   ├── api/
+│   │   └── rutas.py              # Router legado (stub, ver nota en ARCHITECTURE.md)
+│   ├── database/
+│   │   ├── db_config.py          # Conexión SQLite + DDL + migraciones idempotentes
+│   │   └── crud.py               # Operaciones CRUD sobre prestadores y registros
+│   └── services/
+│       ├── procesador_excel.py   # Parser del reporte semanal del checador + redondeo
+│       └── migrador_historico.py # Parser del archivo legacy "SS 2026" (multi-mes)
 │
-├── main.py             # Punto de arranque (Lanza el servidor)
-└── requirements.txt
+├── ui/                           # Frontend estático (servido por FastAPI en /ui)
+│   ├── login.html                # Pantalla de autenticación
+│   ├── index.html                # Dashboard de carga + migración histórica
+│   ├── prestadores.html          # CRUD de prestadores con filtros
+│   ├── seguimiento.html          # Calendario mensual editable + calculador manual
+│   ├── analitica.html            # Hoja de firmas imprimible
+│   ├── js/
+│   │   ├── app.js                # Lógica de upload, tabla de estado y PDF semanal
+│   │   └── chart.min.js          # Chart.js offline (dependencia opcional)
+│   ├── css/style.css             # CSS auxiliar (Tailwind viene por CDN)
+│   └── assets/                   # Imágenes (login background)
+│
+└── data/                         # Generado en runtime (no versionado)
+    ├── asistencias.db            # BD SQLite
+    └── *.xlsx                    # Archivos subidos por el usuario (persistidos)
+```
+
+Explicación detallada de cada capa en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+---
+
+## 5. Documentación modular (`docs/`)
+
+| Archivo | Contenido |
+|---|---|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Arquitectura, separación de capas (`app/` vs `ui/`), patrón de despliegue, decisiones técnicas. |
+| [`docs/BUSINESS_LOGIC.md`](docs/BUSINESS_LOGIC.md) | **Reglas de negocio críticas**: algoritmo de redondeo, meta de horas, ingesta Excel (`INSERT OR REPLACE`), autenticación SHA‑256 + tokens en memoria, normalización de departamentos, manejo de saldo inicial histórico. |
+| [`docs/DATABASE.md`](docs/DATABASE.md) | Esquema completo de `prestadores`, `registros`, `justificaciones`. Relaciones, índices, migraciones idempotentes (`ALTER TABLE` defensivo). |
+| [`docs/API.md`](docs/API.md) | Catálogo de endpoints REST con método, payload, respuesta y ejemplo `curl` por cada uno. |
+| [`docs/FRONTEND.md`](docs/FRONTEND.md) | Propósito y flujos de cada página HTML, dependencia con endpoints, comportamiento JS, particularidades del PDF jsPDF y de la impresión `@media print`. |
+
+---
+
+## 6. Reglas de negocio críticas (resumen para contexto inmediato)
+
+> El detalle completo, con código y justificación, está en [`docs/BUSINESS_LOGIC.md`](docs/BUSINESS_LOGIC.md).
+
+- **Redondeo de horas** (`app/services/procesador_excel.py::redondear_horas`):
+  - parte decimal `≤ 0.15` → **piso** (`floor`)
+  - parte decimal `0.16 – 0.65` → **media hora** (`entero + 0.5`)
+  - parte decimal `> 0.65` → **techo** (`entero + 1`)
+  - El cliente (`ui/js/app.js::redondearHoras`) replica exactamente el algoritmo para mantener coherencia BD ↔ PDF.
+- **Meta de horas**: `480 h` por prestador por defecto (`horas_obligatorias` en `prestadores`).
+- **Ingesta Excel idempotente**: todas las inserciones usan `INSERT OR REPLACE` sobre la restricción `UNIQUE(id_checador, fecha)` para permitir re‑subir el mismo reporte sin duplicados ni romper FKs.
+- **Autenticación**: SHA‑256 de la contraseña, validación contra hash embebido, generación de token de 64 hex chars (`secrets.token_hex(32)`), **almacenado en memoria** (`_sesiones_activas`) con expiración **8 horas** (28 800 s). Los tokens se pierden al reiniciar el servidor.
+- **Estatus de registro** (`registros.estatus`): `Asistencia` (default) · `Falta` · `Justificante` · `Saldo Inicial` (sintético, fecha `2025-12-31`, sólo migración histórica).
+
+---
+
+## 7. Convenciones del proyecto
+
+- **Idioma del código y datos**: español (nombres de columnas, endpoints, mensajes UI).
+- **Departamentos canónicos** (sin acentos, mayúsculas): `LOGISTICA`, `OPERACIONES`, `COMERCIAL`, `PUBLICIDAD`, `RELACIONES PUBLICAS`, `ADQUISICIONES`, `General`. La normalización ocurre al iniciar el servidor (`_normalizar_deptos_existentes` en `main.py`) y en cada migración histórica.
+- **Fechas**: `YYYY-MM-DD` (ISO‑8601) en BD y API.
+- **Sin framework de testing**: validación se hace manualmente vía la UI o `curl` contra los endpoints.
+- **Sin variables de entorno**: rutas, credenciales y parámetros están embebidos (es una herramienta interna local).
+
+---
+
+## 8. Roadmap / pendientes conocidos
+
+- `app/api/rutas.py` es un router legado **no montado** en `main.py`. Todos los endpoints viven directamente en `main.py`. Migrar a `APIRouter` sigue pendiente como refactor.
+- La fecha hard‑codeada `2026-05-{dd}` en `procesador_excel.py` asume reportes de mayo 2026. Para reportes de otros meses requiere parametrización.
+- No hay logs persistentes ni auditoría de cambios en `registros`.
+- Tokens de sesión en memoria → cualquier reinicio expulsa a todos los usuarios.
