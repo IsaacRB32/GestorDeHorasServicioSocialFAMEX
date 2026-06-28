@@ -6,14 +6,14 @@ import sqlite3
 
 from fastapi import APIRouter, Depends, File, UploadFile
 
-from app.api.deps import get_db
+from app.api.deps import get_db, require_auth
 from app.api.schemas import EdicionDia
 from app.core import config
 from app.database import crud
 from app.services.procesador_excel import procesar_reporte_asistencia
 from app.services.migrador_historico import procesar_seguimiento_historico
 
-router = APIRouter(tags=["registros"])
+router = APIRouter(tags=["registros"], dependencies=[Depends(require_auth)])
 
 
 def _guardar_subida(file: UploadFile) -> str:

@@ -4,7 +4,7 @@ async function cargarTablaEstado() {
     const tbody = document.getElementById('tablaResultados');
     if (!tbody) return;
     try {
-        const res = await fetch('/api/seguimiento-datos');
+        const res = await apiFetch('/api/seguimiento-datos');
         const prestadores = await res.json();
         if (!prestadores.length) {
             tbody.innerHTML = '<tr><td colspan="4" class="py-4 px-6 text-center text-gray-400 text-sm">No hay prestadores registrados.</td></tr>';
@@ -39,7 +39,7 @@ async function subirExcel() {
 
     let result;
     try {
-        const response = await fetch('/api/upload-reporte', { method: 'POST', body: formData });
+        const response = await apiFetch('/api/upload-reporte', { method: 'POST', body: formData });
         if (!response.ok) {
             const err = await response.json().catch(() => ({}));
             throw new Error(err.detail || `Error del servidor (${response.status})`);
@@ -79,7 +79,7 @@ async function generarPDF() {
     // Fallback: si no hay datos del upload, los pedimos al servidor
     if (!datos || datos.length === 0) {
         try {
-            const res = await fetch('/api/seguimiento-datos');
+            const res = await apiFetch('/api/seguimiento-datos');
             const prestadores = await res.json();
             datos = prestadores.map(p => ({
                 id: p.id,

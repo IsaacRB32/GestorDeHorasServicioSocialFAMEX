@@ -1,6 +1,8 @@
 # Referencia de la API REST
 
-> Los endpoints están organizados en `app/api/routers/` (`auth`, `prestadores`, `registros`, `seguimiento`, `analitica`) y se montan en `main.py` con prefijo `/api`. El antiguo stub `app/api/rutas.py` fue eliminado. Base URL en local: `http://127.0.0.1:8000`. Los endpoints `/api/*` **aún no exigen token** server‑side — la protección sigue siendo client‑side vía `localStorage.famex_token`. La dependencia `app/core/security.py::require_auth` ya está disponible y se activará en el paso de frontend, cuando el cliente envíe `Authorization: Bearer <token>`. Ver [`BUSINESS_LOGIC.md §5`](BUSINESS_LOGIC.md#5-autenticación).
+> Los endpoints están organizados en `app/api/routers/` (`auth`, `prestadores`, `registros`, `seguimiento`, `analitica`) y se montan en `main.py` con prefijo `/api`. El antiguo stub `app/api/rutas.py` fue eliminado. Base URL en local: `http://127.0.0.1:8000`.
+>
+> **Autenticación (server‑side):** los routers `prestadores`, `registros`, `seguimiento` y `analitica` **exigen** el header `Authorization: Bearer <token>` (vía `dependencies=[Depends(require_auth)]`). Sin token o con token inválido/expirado responden `401`. El router `auth` (`/api/login`, `/api/verificar-sesion`) es **público**. En el frontend, el wrapper `apiFetch()` (en `ui/js/famex-ui.js`) inyecta el header automáticamente. Ver [`BUSINESS_LOGIC.md §5`](BUSINESS_LOGIC.md#5-autenticación).
 
 ---
 
@@ -354,22 +356,28 @@ curl -s -X POST $BASE/api/verificar-sesion \
   -H "Content-Type: application/json" \
   -d "{\"token\":\"$TOKEN\"}"
 
+# Los endpoints protegidos requieren el header Authorization: Bearer <token>
+AUTH="Authorization: Bearer $TOKEN"
+
 # 3. Crear prestador de prueba
-curl -s -X POST $BASE/api/prestadores \
+curl -s -X POST $BASE/api/prestadores -H "$AUTH" \
   -H "Content-Type: application/json" \
   -d '{"id_checador":999,"nombre":"PRUEBA QA","departamento":"OPERACIONES"}'
 
 # 4. Marcar una falta
-curl -s -X POST $BASE/api/actualizar-dia \
+curl -s -X POST $BASE/api/actualizar-dia -H "$AUTH" \
   -H "Content-Type: application/json" \
   -d '{"id_checador":999,"fecha":"2026-05-10","horas":0,"estatus":"Falta"}'
 
 # 5. Consultar seguimiento
-curl -s $BASE/api/seguimiento-datos | jq '.[] | select(.id == 999)'
+curl -s $BASE/api/seguimiento-datos -H "$AUTH" | jq '.[] | select(.id == 999)'
 
 # 6. Dashboard
-curl -s $BASE/api/dashboard/999
+curl -s $BASE/api/dashboard/999 -H "$AUTH"
 
 # 7. Baja
-curl -s -X DELETE $BASE/api/prestadores/999
+curl -s -X DELETE $BASE/api/prestadores/999 -H "$AUTH"
+
+# Sin token → 401
+curl -s -o /dev/null -w "%{http_code}\n" $BASE/api/seguimiento-datos   # → 401
 ```

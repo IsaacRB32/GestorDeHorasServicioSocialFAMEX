@@ -1,6 +1,6 @@
 # Frontend — Páginas y Flujos
 
-> Cada HTML en `ui/` es **autocontenido**: importa Tailwind por CDN, define sus propios scripts inline para la lógica interactiva específica, y comparte únicamente `ui/js/app.js` con el dashboard. No hay router cliente, no hay framework: la navegación es por `<a href>` y por `window.location.replace`. Todas las páginas (excepto `login.html`) ejecutan un guard de token en `<head>` que redirige a `login.html` si no existe `localStorage.famex_token`.
+> Cada HTML en `ui/` importa Tailwind por CDN y, justo después, el **núcleo compartido `ui/js/famex-ui.js`**, que centraliza cuatro responsabilidades transversales: (1) la **configuración de tema de Tailwind** (paleta `brand`/`ink`, sombras `card`/`sidebar`, tipografía `Inter`), (2) la **guardia de autenticación** (redirige a `login.html` si no hay `localStorage.famex_token`), (3) el wrapper **`apiFetch()`** que inyecta `Authorization: Bearer <token>` y gestiona los 401 globalmente, y (4) el **Web Component `<famex-sidebar>`**. La lógica interactiva específica de cada vista sigue en scripts inline; el dashboard comparte además `ui/js/app.js`. No hay router cliente ni framework: la navegación es por `<a href>`.
 
 ---
 
@@ -14,7 +14,7 @@
 | `seguimiento.html` | `/ui/seguimiento.html` | Expedientes mes a mes con calendario editable y calculadora manual. | `GET /api/seguimiento-datos`, `POST /api/actualizar-dia` |
 | `analitica.html` | `/ui/analitica.html` | Hoja de firmas global, optimizada para impresión. | `GET /api/seguimiento-datos`, `GET /api/analitica-general` |
 
-Estructura compartida: todas (menos `login`) muestran un sidebar `<aside class="w-64 bg-slate-900">` con los enlaces a las 4 páginas internas y un botón "Cerrar Sesión" que limpia `localStorage` y vuelve a `login.html`.
+Estructura compartida: todas (menos `login`) renderizan el menú lateral con una sola etiqueta `<famex-sidebar></famex-sidebar>`. El Web Component (definido en `famex-ui.js`) genera el `<aside>` con los enlaces a las 4 páginas, resalta el ítem activo automáticamente según el nombre del archivo (`index.html`→Carga, `prestadores.html`→Directorio, etc.) y expone el botón "Cerrar Sesión" (`famexLogout()`). El host lleva la clase `.no-print`, por lo que el sidebar se oculta al imprimir en cualquier vista. Esto elimina la duplicación previa del bloque `<aside>` en los 4 HTML.
 
 ---
 
@@ -185,9 +185,20 @@ El CSS `@media print` en el `<head>` activa una vista limpia al imprimir:
 
 ---
 
-## 8. Recomendaciones de evolución del frontend
+## 8. Núcleo compartido `ui/js/famex-ui.js`
 
-- Extraer el sidebar a un componente parcial (Web Component o include server‑side) — actualmente está duplicado en 4 HTML.
-- Centralizar las llamadas a la API en un único módulo `api.js` con manejo común de 401 (redirigir al login).
-- Añadir un interceptor que envíe `Authorization: Bearer <famex_token>` en todas las requests cuando el backend implemente auth server‑side.
+Módulo IIFE cargado en el `<head>` de las 5 vistas, inmediatamente después del CDN de Tailwind (debe ir después para que `window.tailwind` exista al fijar la config).
+
+| Bloque | Qué hace |
+|---|---|
+| **Config Tailwind** | Define `tailwind.config.theme.extend`: colores `brand` (azul corporativo) e `ink` (superficies oscuras), `fontFamily.sans` = Inter, y sombras `card`, `card-hover`, `sidebar`. Unifica paleta/sombras/espaciados en todas las vistas. |
+| **Guardia de auth** | Si la página no es `login.html` y no hay `localStorage.famex_token`, hace `location.replace('login.html')` antes de inicializar nada más. |
+| **`apiFetch(url, options)`** | Wrapper de `fetch` que añade el header `Authorization: Bearer <token>`. Ante un `401` (salvo en `/api/login`) limpia el token y redirige al login. Usa `Headers` para no romper subidas `multipart`. Expuesto como `window.apiFetch`. |
+| **`famexLogout()`** | Limpia las llaves de sesión y vuelve a `login.html`. Lo invoca el botón del sidebar. |
+| **`<famex-sidebar>`** | Custom Element (light DOM, para que apliquen las utilidades del CDN) que renderiza el menú lateral con ítem activo automático. |
+
+> **Seguridad engranada:** como `apiFetch` envía el `Bearer`, los routers `prestadores`, `registros`, `seguimiento` y `analitica` ya exigen token server‑side (`dependencies=[Depends(require_auth)]`). El router `auth` permanece público. Ver [`API.md`](API.md) y [`BUSINESS_LOGIC.md §5`](BUSINESS_LOGIC.md#5-autenticación).
+
+### Pendientes
 - Migrar a Vite + Vue/React si el sistema crece a múltiples coordinadores — el modelo actual no escala a más de 1 admin.
+- Persistir las sesiones (hoy en memoria del servidor): un reinicio invalida los tokens.

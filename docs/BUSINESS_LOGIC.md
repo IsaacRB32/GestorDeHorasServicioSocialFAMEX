@@ -151,7 +151,7 @@ Cada página HTML protegida (todas menos `login.html`) ejecuta en `<head>`:
 </script>
 ```
 
-Adicionalmente existe `POST /api/verificar-sesion` con `body = {token}` que retorna `{valido: true}` o lanza 401. **Importante:** la verificación es cliente‑only: el frontend confía en la presencia del token en `localStorage`. **Los endpoints de la API no exigen el token** (no hay middleware de autenticación). Esto es aceptable porque el sistema corre local, pero **no es seguro en un despliegue público**.
+Adicionalmente existe `POST /api/verificar-sesion` con `body = {token}` que retorna `{valido: true}` o lanza 401. **Verificación server‑side activa:** desde el refactor Enterprise, los routers `prestadores`, `registros`, `seguimiento` y `analitica` exigen el header `Authorization: Bearer <token>` mediante la dependencia `app/core/security.py::require_auth` (declarada como `dependencies=[Depends(require_auth)]` a nivel de router). El router `auth` permanece público. En el cliente, el wrapper `apiFetch()` (`ui/js/famex-ui.js`) inyecta el header en todas las llamadas y, ante un `401`, limpia el token y redirige a `login.html`. La validación del token es de tiempo constante en el path de login (`secrets.compare_digest`) y el almacén de sesiones está protegido con `threading.Lock`.
 
 ### 5.4. Expiración
 

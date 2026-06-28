@@ -3,35 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <title>Control de Asistencias</title>
-    <script>
-        if (!localStorage.getItem('famex_token')) {
-            window.location.replace('login.html');
-        }
-    </script>
-        <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="js/famex-ui.js"></script>
     <link href="css/style.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body class="bg-gray-100 font-sans">
     <div class="flex h-screen">
-        <!-- Menú Lateral Unificado -->
-        <aside class="w-64 bg-slate-900 text-white p-6 shadow-xl z-10">
-            <h1 class="text-xl font-bold mb-10 tracking-wider">FAMEX <span class="text-blue-400">Control</span></h1>
-            <nav class="space-y-2">
-                <a href="#" class="block py-2.5 px-4 rounded bg-slate-700 font-semibold shadow">Panel de Carga</a>
-                <a href="prestadores.html" class="block py-2.5 px-4 rounded hover:bg-slate-700 transition">Directorio</a>
-                <a href="seguimiento.html" class="block py-2.5 px-4 rounded hover:bg-slate-700 transition">Expedientes</a>
-                <a href="analitica.html" class="block py-2.5 px-4 rounded hover:bg-slate-700 transition">Analítica Global</a> <!-- AGREGADO -->
-            </nav>
-            <button onclick="localStorage.clear(); window.location.href='login.html'"
-                class="mt-4 w-full py-2.5 px-4 rounded-lg text-sm font-bold text-slate-400 hover:text-white hover:bg-red-600/80 transition-all flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"/>
-                </svg>
-                Cerrar Sesión
-            </button>
-        </aside>
+        <!-- Menú Lateral Unificado (Web Component) -->
+        <famex-sidebar></famex-sidebar>
 
         <main class="flex-1 p-10 overflow-y-auto">
             <h2 class="text-2xl font-bold text-gray-800 mb-6">Cargar Reporte de Asistencia</h2>
@@ -73,7 +54,7 @@
         status.innerText = 'Migrando datos históricos...';
         status.className = 'mt-3 text-sm font-medium text-blue-600';
         try {
-            const res = await fetch('/api/migrar-historico', { method: 'POST', body: fd });
+            const res = await apiFetch('/api/migrar-historico', { method: 'POST', body: fd });
             const r = await res.json();
             status.innerText = `✓ ${r.prestadores_nuevos} prestadores nuevos · ${r.registros_insertados} registros insertados`;
             status.className = 'mt-3 text-sm font-medium text-green-600';

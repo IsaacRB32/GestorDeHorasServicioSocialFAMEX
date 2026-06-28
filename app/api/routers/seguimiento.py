@@ -4,10 +4,10 @@ import sqlite3
 
 from fastapi import APIRouter, Depends
 
-from app.api.deps import get_db
+from app.api.deps import get_db, require_auth
 from app.database import crud
 
-router = APIRouter(tags=["seguimiento"])
+router = APIRouter(tags=["seguimiento"], dependencies=[Depends(require_auth)])
 
 
 @router.get("/dashboard/{id_prestador}")

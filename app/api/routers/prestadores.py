@@ -4,11 +4,11 @@ import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.api.deps import get_db
+from app.api.deps import get_db, require_auth
 from app.api.schemas import PrestadorInput
 from app.database import crud
 
-router = APIRouter(tags=["prestadores"])
+router = APIRouter(tags=["prestadores"], dependencies=[Depends(require_auth)])
 
 
 @router.get("/prestadores-lista")
