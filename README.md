@@ -104,16 +104,21 @@ Detalle de pruebas por endpoint y flujo en [`docs/API.md`](docs/API.md) y [`docs
 ```
 GestorDeHorasServicioSocialFAMEX/
 │
-├── main.py                       # Entrypoint FastAPI: monta /ui, define endpoints, auth, inicializa BD
+├── main.py                       # Entrypoint FastAPI: lifespan (bootstrap BD), monta routers y /ui
 ├── requirements.txt              # Dependencias Python pinneadas
 ├── README.md                     # Este archivo (hub de documentación)
 │
 ├── app/                          # Backend (lógica del servidor)
+│   ├── core/
+│   │   ├── config.py            # Rutas, credenciales y constantes (override por env)
+│   │   └── security.py          # Auth: hashing, token store con lock, require_auth
 │   ├── api/
-│   │   └── rutas.py              # Router legado (stub, ver nota en ARCHITECTURE.md)
+│   │   ├── deps.py              # Dependencias compartidas (get_db, require_auth)
+│   │   ├── schemas.py           # Modelos Pydantic de entrada
+│   │   └── routers/            # APIRouters: auth, prestadores, registros, seguimiento, analitica
 │   ├── database/
-│   │   ├── db_config.py          # Conexión SQLite + DDL + migraciones idempotentes
-│   │   └── crud.py               # Operaciones CRUD sobre prestadores y registros
+│   │   ├── db_config.py          # Conexión (FK+WAL) + get_db/transaccion + DDL + bootstrap
+│   │   └── crud.py               # Operaciones CRUD (conexión inyectada, executemany)
 │   └── services/
 │       ├── procesador_excel.py   # Parser del reporte semanal del checador + redondeo
 │       └── migrador_historico.py # Parser del archivo legacy "SS 2026" (multi-mes)
@@ -179,7 +184,8 @@ Explicación detallada de cada capa en [`docs/ARCHITECTURE.md`](docs/ARCHITECTUR
 
 ## 8. Roadmap / pendientes conocidos
 
-- `app/api/rutas.py` es un router legado **no montado** en `main.py`. Todos los endpoints viven directamente en `main.py`. Migrar a `APIRouter` sigue pendiente como refactor.
-- La fecha hard‑codeada `2026-05-{dd}` en `procesador_excel.py` asume reportes de mayo 2026. Para reportes de otros meses requiere parametrización.
+- ~~`app/api/rutas.py` es un router legado no montado~~ ✅ **Resuelto:** endpoints migrados a `app/api/routers/` (`APIRouter`) y stub eliminado.
+- ~~Endpoints concentrados en `main.py`~~ ✅ **Resuelto:** `main.py` ahora solo arma la app (lifespan + include_router + estáticos).
+- La fecha hard‑codeada `2026-05-{dd}` en `procesador_excel.py` asume reportes de mayo 2026. Para reportes de otros meses requiere parametrización (pendiente — Paso 4).
 - No hay logs persistentes ni auditoría de cambios en `registros`.
-- Tokens de sesión en memoria → cualquier reinicio expulsa a todos los usuarios.
+- Tokens de sesión en memoria → cualquier reinicio expulsa a todos los usuarios. La API aún no exige `Bearer` (se activará junto al wrapper `fetch` del frontend, Paso 3).

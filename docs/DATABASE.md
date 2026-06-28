@@ -9,10 +9,12 @@
 | Ítem | Valor |
 |---|---|
 | **Driver** | `sqlite3` (stdlib) |
-| **Archivo** | `data/asistencias.db` (relativo al root del proyecto) |
+| **Archivo** | `data/asistencias.db` (resuelto vía `app/core/config.py::DB_PATH`) |
 | **Creación del directorio** | Automática en `obtener_conexion()` si `data/` no existe. |
 | **row_factory** | `sqlite3.Row` → permite `row["nombre"]` (acceso por nombre de columna). |
-| **Pragmas** | Ninguno especial; se usa el modo journal por defecto (DELETE). |
+| **Pragmas** | `PRAGMA foreign_keys = ON` (integridad referencial real) y `PRAGMA journal_mode = WAL` (mejor concurrencia de lectura). Se aplican en cada conexión en `obtener_conexion()`. |
+
+> **Nota WAL:** SQLite generará archivos auxiliares `asistencias.db-wal` y `asistencias.db-shm` junto a la BD. Son normales; para respaldo en frío usar `sqlite3 ... ".backup"` (ver §7.2), que consolida el WAL.
 
 ---
 
@@ -198,3 +200,31 @@ sqlite3 data/asistencias.db ".backup data/asistencias_backup.db"
 rm data/asistencias.db
 # al siguiente arranque del servidor, inicializar_bd() recreará todo desde cero
 ```
+
+---
+
+## 10. Gestión de conexiones (arquitectura)
+
+Desde el refactor Enterprise, el ciclo de vida de la conexión lo posee el
+**llamador**, no las funciones de `crud.py`. Tres mecanismos en
+`app/database/db_config.py`:
+
+| Mecanismo | Firma | Uso |
+|---|---|---|
+| `obtener_conexion()` | `() -> Connection` | Crea una conexión configurada (FK + WAL + Row). Base de los otros dos. |
+| `get_db()` | `() -> Iterator[Connection]` | **Dependency de FastAPI** (`Depends(get_db)`). Abre una conexión por request y la cierra siempre en el `finally`. |
+| `transaccion()` | context manager | `with transaccion() as conn:` → `commit` al salir, `rollback` ante excepción. Para escrituras atómicas y para el bootstrap. |
+
+**Inyección en `crud.py`:** todas las funciones reciben `conn` como primer
+parámetro. Esto permite (a) reutilizar una sola conexión por request, (b)
+testear con una conexión `:memory:`, y (c) componer varias operaciones en una
+misma transacción.
+
+**Bootstrap de arranque:** `db_config.bootstrap()` encadena
+`inicializar_bd()` → `asegurar_datos_semilla()` → `normalizar_departamentos_existentes()`.
+Lo invoca el `lifespan` de la app (ver `ARCHITECTURE.md`), reemplazando la
+ejecución a nivel de import del antiguo `main.py`.
+
+**Optimización de bucles:** `guardar_registros_diarios` y
+`guardar_registros_historicos` usan `executemany` (una sola sentencia
+preparada para todo el lote) en lugar de iterar `execute`.

@@ -1,82 +1,143 @@
-import sqlite3
+# app/database/db_config.py
+"""Bootstrap y gestión de conexiones de la base de datos SQLite."""
 import os
+import sqlite3
+from contextlib import contextmanager
+from typing import Iterator
 
-# Rutas dinámicas para que funcione en cualquier PC
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-DB_PATH = os.path.join(DATA_DIR, "asistencias.db")
+from app.core import config
 
-def obtener_conexion():
-    """Crea y retorna la conexión a SQLite de forma segura."""
-    if not os.path.exists(DATA_DIR):
-        os.makedirs(DATA_DIR)
-    
+DB_PATH = config.DB_PATH
+DATA_DIR = config.DATA_DIR
+
+
+def obtener_conexion() -> sqlite3.Connection:
+    """Crea una conexión SQLite con FKs activas, WAL y acceso por nombre."""
+    os.makedirs(DATA_DIR, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
-    # Permite acceder a las columnas por nombre como si fueran diccionarios
-    conn.row_factory = sqlite3.Row 
+    conn.row_factory = sqlite3.Row
+    # Integridad referencial real (cascadas, FK enforcement).
+    conn.execute("PRAGMA foreign_keys = ON")
+    # WAL: mejores lecturas concurrentes y menos bloqueos en escritura.
+    conn.execute("PRAGMA journal_mode = WAL")
     return conn
 
-def inicializar_bd():
-    """Crea las tablas estrictamente alineadas a los requerimientos."""
+
+def get_db() -> Iterator[sqlite3.Connection]:
+    """Dependency de FastAPI: una conexión por request, cierre garantizado.
+
+    Uso en un endpoint:  def handler(db: sqlite3.Connection = Depends(get_db)): ...
+    """
     conn = obtener_conexion()
-    cursor = conn.cursor()
-
-    # REQUERIMIENTO 1: Módulo de Administración de Prestadores
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS prestadores (
-            id_checador INTEGER PRIMARY KEY,
-            nombre TEXT NOT NULL,
-            departamento TEXT NOT NULL,
-            fecha_inicio DATE,
-            fecha_termino DATE,
-            horas_obligatorias INTEGER DEFAULT 480,
-            estatus TEXT DEFAULT 'Activo'
-        )
-    ''')
-
-    # REQUERIMIENTO 2 y 3: Motor de Ingesta y Persistencia de Registros
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS registros (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            id_checador INTEGER,
-            fecha DATE NOT NULL,
-            hora_entrada TEXT,
-            hora_salida TEXT,
-            horas_trabajadas REAL DEFAULT 0.0,
-            requiere_revision BOOLEAN DEFAULT 0,
-            estatus TEXT DEFAULT 'Asistencia', -- NUEVA COLUMNA
-            FOREIGN KEY(id_checador) REFERENCES prestadores(id_checador),
-            UNIQUE(id_checador, fecha) 
-        )
-    ''')
-
-    # REQUERIMIENTO 4: Gestión de Justificaciones y Excepciones
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS justificaciones (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            id_checador INTEGER,
-            fecha DATE NOT NULL,
-            motivo TEXT,
-            FOREIGN KEY(id_checador) REFERENCES prestadores(id_checador),
-            UNIQUE(id_checador, fecha)
-        )
-    ''')
-
-    # Columna sexo (migración segura para BDs existentes)
     try:
-        cursor.execute("ALTER TABLE prestadores ADD COLUMN sexo TEXT")
-    except sqlite3.OperationalError:
-        pass  # Ya existe
+        yield conn
+    finally:
+        conn.close()
 
-    # Índices de rendimiento
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_registros_checador_fecha ON registros(id_checador, fecha)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_registros_estatus ON registros(estatus)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_prestadores_depto ON prestadores(departamento)')
 
-    conn.commit()
-    conn.close()
+@contextmanager
+def transaccion() -> Iterator[sqlite3.Connection]:
+    """Context manager transaccional: commit al salir, rollback ante excepción.
 
-# Script de autoejecución para crear la base de datos la primera vez
-if __name__ == "__main__":
+    Pensado para operaciones de escritura múltiple que deben ser atómicas.
+    """
+    conn = obtener_conexion()
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def inicializar_bd() -> None:
+    """Crea tablas, aplica migraciones idempotentes e índices. Idempotente."""
+    with transaccion() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS prestadores (
+                id_checador INTEGER PRIMARY KEY,
+                nombre TEXT NOT NULL,
+                departamento TEXT NOT NULL,
+                fecha_inicio DATE,
+                fecha_termino DATE,
+                horas_obligatorias INTEGER DEFAULT 480,
+                estatus TEXT DEFAULT 'Activo'
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS registros (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id_checador INTEGER,
+                fecha DATE NOT NULL,
+                hora_entrada TEXT,
+                hora_salida TEXT,
+                horas_trabajadas REAL DEFAULT 0.0,
+                requiere_revision BOOLEAN DEFAULT 0,
+                estatus TEXT DEFAULT 'Asistencia',
+                FOREIGN KEY(id_checador) REFERENCES prestadores(id_checador),
+                UNIQUE(id_checador, fecha)
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS justificaciones (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id_checador INTEGER,
+                fecha DATE NOT NULL,
+                motivo TEXT,
+                FOREIGN KEY(id_checador) REFERENCES prestadores(id_checador),
+                UNIQUE(id_checador, fecha)
+            )
+        ''')
+
+        # Migración segura: columna 'sexo' en BDs preexistentes.
+        try:
+            cursor.execute("ALTER TABLE prestadores ADD COLUMN sexo TEXT")
+        except sqlite3.OperationalError:
+            pass  # Ya existe
+
+        # Índices de rendimiento.
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_registros_checador_fecha ON registros(id_checador, fecha)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_registros_estatus ON registros(estatus)')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_prestadores_depto ON prestadores(departamento)')
+
+
+def normalizar_departamentos_existentes() -> None:
+    """Unifica variantes legacy de departamento a su forma canónica."""
+    with transaccion() as conn:
+        cursor = conn.cursor()
+        for variante, canonico in config.DEPTO_NORMALIZACION.items():
+            cursor.execute(
+                "UPDATE prestadores SET departamento = ? WHERE departamento = ?",
+                (canonico, variante),
+            )
+
+
+def asegurar_datos_semilla() -> None:
+    """Garantiza el prestador semilla. Idempotente (ignora si ya existe)."""
+    semilla = config.PRESTADOR_SEMILLA
+    with transaccion() as conn:
+        conn.execute(
+            '''INSERT OR IGNORE INTO prestadores
+               (id_checador, nombre, departamento, fecha_inicio, fecha_termino, horas_obligatorias)
+               VALUES (?, ?, ?, ?, ?, ?)''',
+            (semilla["id_checador"], semilla["nombre"], semilla["departamento"],
+             config.PERIODO_INICIO, config.PERIODO_TERMINO, config.HORAS_OBLIGATORIAS_DEFAULT),
+        )
+
+
+def bootstrap() -> None:
+    """Pipeline de arranque completo (lo invocará el lifespan de main.py)."""
     inicializar_bd()
-    print(f"Base de datos SQLite creada exitosamente en: {DB_PATH}")
+    asegurar_datos_semilla()
+    normalizar_departamentos_existentes()
+
+
+if __name__ == "__main__":
+    bootstrap()
+    print(f"Base de datos SQLite lista en: {DB_PATH}")

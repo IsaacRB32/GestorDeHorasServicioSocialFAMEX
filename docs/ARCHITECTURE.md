@@ -48,11 +48,21 @@ No hay separación física entre cliente y servidor, ni proxy reverso, ni CDN: t
 
 ```
 app/
+├── core/
+│   ├── config.py             # Rutas, credenciales y constantes (override por env)
+│   └── security.py           # Auth: hashing, token store con lock, require_auth
 ├── api/
-│   └── rutas.py              # ⚠ STUB legado, NO se monta. Ver §5.
+│   ├── deps.py               # Dependencias compartidas (get_db, require_auth)
+│   ├── schemas.py            # Modelos Pydantic (LoginInput, PrestadorInput, EdicionDia)
+│   └── routers/
+│       ├── auth.py           # /login, /verificar-sesion
+│       ├── prestadores.py    # CRUD prestadores + /departamentos
+│       ├── registros.py      # /upload-reporte, /migrar-historico, /actualizar-dia
+│       ├── seguimiento.py    # /dashboard/{id}, /seguimiento-datos
+│       └── analitica.py      # /analitica-general
 ├── database/
-│   ├── db_config.py          # Conexión + DDL + migraciones idempotentes
-│   └── crud.py               # Operaciones de persistencia
+│   ├── db_config.py          # Conexión (FK+WAL) + get_db/transaccion + DDL + bootstrap
+│   └── crud.py               # Operaciones de persistencia (conexión inyectada)
 └── services/
     ├── procesador_excel.py   # Parser checador semanal + redondeo
     └── migrador_historico.py # Parser hoja legacy multi-mes "SS 2026"
@@ -167,16 +177,16 @@ respuesta {prestadores_nuevos, registros_insertados}
 ### 4.3. Autenticación en memoria
 **Por qué:** los tokens se almacenan en `_sesiones_activas: dict` dentro del proceso. Adecuado para un despliegue mono‑usuario local. **Trade‑off:** al reiniciar el servidor todos los tokens se invalidan y el usuario debe re‑loguearse. Ver detalle en [`BUSINESS_LOGIC.md`](BUSINESS_LOGIC.md#5-autenticación).
 
-### 4.4. Endpoints concentrados en `main.py`
-Aunque existe `app/api/rutas.py` con un esqueleto de `APIRouter`, **no está montado**. Todos los endpoints reales están definidos como funciones decoradas con `@app.<verb>` directamente en `main.py`. Esto es un atajo histórico y la refactorización a routers modulares está pendiente.
+### 4.4. Endpoints modulares con `APIRouter`
+Los endpoints están organizados en `app/api/routers/` (`auth`, `prestadores`, `registros`, `seguimiento`, `analitica`), cada uno un `APIRouter` propio. `main.py` los monta con `app.include_router(..., prefix="/api")`. Los handlers son delgados: validan con los modelos de `app/api/schemas.py`, obtienen la conexión vía `Depends(get_db)` y delegan toda la lógica de datos en `app/database/crud.py`. El antiguo stub `app/api/rutas.py` fue **eliminado**.
 
-### 4.5. Inicialización agresiva en el import
-`main.py` ejecuta al cargar el módulo:
+### 4.5. Inicialización vía `lifespan`
+El bootstrap de la BD ya **no** corre a nivel de import. `main.py` define un `lifespan` asíncrono que ejecuta `db_config.bootstrap()` una sola vez al arrancar el servidor, encadenando:
 1. `inicializar_bd()` → crea/migra tablas e índices.
-2. `registrar_prestador(1, "ALEXIA BERNAL", ...)` → garantiza un prestador semilla.
-3. `_normalizar_deptos_existentes()` → normaliza variantes legacy de nombres de departamento.
+2. `asegurar_datos_semilla()` → garantiza el prestador semilla (`INSERT OR IGNORE`).
+3. `normalizar_departamentos_existentes()` → normaliza variantes legacy de departamento.
 
-**Implicación:** cada `uvicorn --reload` reinicia este pipeline, pero todas las operaciones son idempotentes y seguras.
+**Implicación:** cada `uvicorn --reload` reejecuta el pipeline; todas las operaciones son idempotentes y seguras.
 
 ### 4.6. Replicación cliente/servidor del algoritmo de redondeo
 La función `redondear_horas` existe **dos veces**: una en `procesador_excel.py` (Python) y otra en `ui/js/app.js` (JS). Ambas implementan exactamente el mismo algoritmo. La duplicación es deliberada: permite que el PDF muestre el redondeo coherente con la BD sin requerir una llamada extra al servidor.
@@ -187,22 +197,22 @@ La función `redondear_horas` existe **dos veces**: una en `procesador_excel.py`
 
 ## 5. Endpoints — quick map
 
-| Método | Ruta | Handler en `main.py` |
+| Método | Ruta | Router · Handler |
 |---|---|---|
-| GET | `/` | `redirigir_login` → 307 a `/ui/login.html` |
-| GET | `/ui/*` | StaticFiles |
-| POST | `/api/login` | `login` |
-| POST | `/api/verificar-sesion` | `verificar_sesion_endpoint` |
-| POST | `/api/upload-reporte` | `upload_reporte` |
-| POST | `/api/migrar-historico` | `migrar_historico` |
-| GET | `/api/dashboard/{id}` | `dashboard_api` |
-| GET | `/api/seguimiento-datos` | `obtener_datos_seguimiento` |
-| GET | `/api/analitica-general` | `obtener_analitica` |
-| GET | `/api/prestadores-lista` | `obtener_prestadores` |
-| POST | `/api/prestadores` | `crear_prestador_api` |
-| PUT | `/api/prestadores/{id}` | `actualizar_prestador_api` |
-| DELETE | `/api/prestadores/{id}` | `dar_de_baja` |
-| GET | `/api/departamentos` | `obtener_departamentos` |
-| POST | `/api/actualizar-dia` | `actualizar_dia` |
+| GET | `/` | `main.py::redirigir_login` → 307 a `/ui/login.html` |
+| GET | `/ui/*` | `main.py` StaticFiles |
+| POST | `/api/login` | `routers/auth.py::login` |
+| POST | `/api/verificar-sesion` | `routers/auth.py::verificar_sesion` |
+| POST | `/api/upload-reporte` | `routers/registros.py::upload_reporte` |
+| POST | `/api/migrar-historico` | `routers/registros.py::migrar_historico` |
+| POST | `/api/actualizar-dia` | `routers/registros.py::actualizar_dia` |
+| GET | `/api/dashboard/{id}` | `routers/seguimiento.py::dashboard` |
+| GET | `/api/seguimiento-datos` | `routers/seguimiento.py::seguimiento_datos` |
+| GET | `/api/analitica-general` | `routers/analitica.py::analitica` |
+| GET | `/api/prestadores-lista` | `routers/prestadores.py::listar` |
+| POST | `/api/prestadores` | `routers/prestadores.py::crear` |
+| PUT | `/api/prestadores/{id}` | `routers/prestadores.py::actualizar` |
+| DELETE | `/api/prestadores/{id}` | `routers/prestadores.py::eliminar` |
+| GET | `/api/departamentos` | `routers/prestadores.py::departamentos` |
 
 Especificación detallada (payload, respuesta, ejemplos `curl`) en [`API.md`](API.md).

@@ -1,6 +1,6 @@
 # Referencia de la API REST
 
-> Todos los endpoints viven en `main.py` (no en `app/api/rutas.py`, que es un stub legado). Base URL en local: `http://127.0.0.1:8000`. Los endpoints `/api/*` **no exigen token** server‑side — la protección es client‑side vía `localStorage.famex_token`. Ver [`BUSINESS_LOGIC.md §5`](BUSINESS_LOGIC.md#5-autenticación).
+> Los endpoints están organizados en `app/api/routers/` (`auth`, `prestadores`, `registros`, `seguimiento`, `analitica`) y se montan en `main.py` con prefijo `/api`. El antiguo stub `app/api/rutas.py` fue eliminado. Base URL en local: `http://127.0.0.1:8000`. Los endpoints `/api/*` **aún no exigen token** server‑side — la protección sigue siendo client‑side vía `localStorage.famex_token`. La dependencia `app/core/security.py::require_auth` ya está disponible y se activará en el paso de frontend, cuando el cliente envíe `Authorization: Bearer <token>`. Ver [`BUSINESS_LOGIC.md §5`](BUSINESS_LOGIC.md#5-autenticación).
 
 ---
 
