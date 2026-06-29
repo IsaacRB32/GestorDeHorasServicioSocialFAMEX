@@ -172,15 +172,29 @@ async function generarPDF() {
         }
     });
 
-    // Imprimir en lugar de descargar: abre el PDF en una pestaña y dispara el
-    // dialogo de impresion (coherente con la hoja de firmas de Analitica).
-    doc.autoPrint();
+    // Impresión INTEGRADA: se carga el PDF en un iframe oculto dentro de la
+    // misma ventana y se dispara el diálogo nativo de impresión ahí mismo
+    // (sin abrir pestañas ni salir de la pantalla actual), igual que el
+    // window.print() de la hoja de firmas pero para el PDF generado.
     const urlPDF = doc.output('bloburl');
-    const win = window.open(urlPDF, '_blank');
-    if (!win) {
-        // Popup bloqueado -> respaldo: descarga el archivo.
-        doc.save(`resumen_semanal_FAMEX_${new Date().toISOString().slice(0, 10)}.pdf`);
+    let frame = document.getElementById('famexPrintFrame');
+    if (!frame) {
+        frame = document.createElement('iframe');
+        frame.id = 'famexPrintFrame';
+        frame.setAttribute('aria-hidden', 'true');
+        frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+        document.body.appendChild(frame);
     }
+    frame.onload = function () {
+        try {
+            frame.contentWindow.focus();
+            frame.contentWindow.print();
+        } catch (e) {
+            // Fallback extremo si el navegador bloquea la impresión del iframe.
+            doc.save(`resumen_semanal_FAMEX_${new Date().toISOString().slice(0, 10)}.pdf`);
+        }
+    };
+    frame.src = urlPDF;
 }
 
 // ============ MIGRACIÓN HISTÓRICA (antes inline en index.html) ============

@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <title>Registro Semanal - FAMEX</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="js/famex-ui.js?v=9"></script>
-    <link href="css/style.css?v=9" rel="stylesheet">
+    <script src="js/famex-ui.js?v=11"></script>
+    <link href="css/style.css?v=11" rel="stylesheet">
     <style>
         @media print {
             @page { size: letter portrait; margin: 10mm 10mm; }
@@ -78,7 +78,13 @@
                         <!-- Navegación de semana -->
                         <div class="flex items-center bg-gray-50 p-1 rounded-lg border border-gray-200">
                             <button onclick="cambiarSemana(-1)" class="px-3 py-1.5 bg-white rounded-md shadow-sm border border-gray-200 hover:bg-blue-50 hover:text-blue-600 font-bold transition text-sm">&lt;</button>
-                            <span id="labelSemana" class="font-bold text-sm text-gray-700 w-56 text-center px-2">—</span>
+                            <div class="relative">
+                                <button type="button" onclick="toggleSelectorSemana(event)" class="w-56 px-2 py-1 rounded-lg hover:bg-blue-50 transition flex items-center justify-center gap-1.5">
+                                    <span id="labelSemana" class="font-bold text-sm text-gray-700">—</span>
+                                    <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                                </button>
+                                <div id="popoverSemana" class="hidden absolute z-50 mt-2 left-1/2 -translate-x-1/2 w-72 bg-white rounded-xl shadow-lg ring-1 ring-gray-200 p-3"></div>
+                            </div>
                             <button onclick="cambiarSemana(1)" class="px-3 py-1.5 bg-white rounded-md shadow-sm border border-gray-200 hover:bg-blue-50 hover:text-blue-600 font-bold transition text-sm">&gt;</button>
                         </div>
                         <button onclick="window.print()"
@@ -138,7 +144,7 @@
             </table>
         </main>
 
-    <script src="js/analitica.js?v=9"></script>
+    <script src="js/analitica.js?v=11"></script>
 
 </body>
 </html>

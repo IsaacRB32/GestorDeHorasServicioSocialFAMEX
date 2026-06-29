@@ -53,6 +53,86 @@ function cambiarSemana(dir) {
     renderizar();
 }
 
+// ===== Selector rápido de SEMANA (input type=week, ISO 8601) =====
+function fechaAISOWeek(d) {
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = (date.getUTCDay() + 6) % 7;            // Lun=0 … Dom=6
+    date.setUTCDate(date.getUTCDate() - dayNum + 3);      // jueves de esa semana
+    const primerJueves = new Date(Date.UTC(date.getUTCFullYear(), 0, 4));
+    const semana = 1 + Math.round(((date - primerJueves) / 86400000 - 3 + ((primerJueves.getUTCDay() + 6) % 7)) / 7);
+    return `${date.getUTCFullYear()}-W${String(semana).padStart(2, '0')}`;
+}
+
+function lunesDeSemanaISO(y, w) {
+    const simple = new Date(Date.UTC(y, 0, 1 + (w - 1) * 7));
+    const dow = simple.getUTCDay();
+    if (dow <= 4) simple.setUTCDate(simple.getUTCDate() - dow + 1);
+    else simple.setUTCDate(simple.getUTCDate() + 8 - dow);
+    return new Date(simple.getUTCFullYear(), simple.getUTCMonth(), simple.getUTCDate());
+}
+
+// ===== Selector de Semana (dropdown Tailwind, sin inputs nativos) =====
+const MESES_CORTOS_SEM = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+let _anioSelSem = null;
+
+function semanasDelAnio(y) {
+    const total = parseInt(fechaAISOWeek(new Date(y, 11, 28)).split('-W')[1], 10);
+    const arr = [];
+    for (let w = 1; w <= total; w++) {
+        const lun = lunesDeSemanaISO(y, w);
+        const vie = new Date(lun); vie.setDate(lun.getDate() + 4);
+        arr.push({ w, lun, vie });
+    }
+    return arr;
+}
+function toggleSelectorSemana(ev) {
+    ev.stopPropagation();
+    const pop = document.getElementById('popoverSemana');
+    if (!pop.classList.contains('hidden')) { _cerrarSelectorSemana(); return; }
+    _anioSelSem = lunesActivo.getFullYear();
+    renderPopoverSemana();
+    pop.classList.remove('hidden');
+    setTimeout(() => document.addEventListener('click', _clicFueraSem), 0);
+    const act = pop.querySelector('[data-activa="1"]');
+    if (act) act.scrollIntoView({ block: 'center' });
+}
+function _clicFueraSem(e) {
+    const pop = document.getElementById('popoverSemana');
+    if (pop && !pop.contains(e.target)) _cerrarSelectorSemana();
+}
+function _cerrarSelectorSemana() {
+    const pop = document.getElementById('popoverSemana');
+    if (pop) pop.classList.add('hidden');
+    document.removeEventListener('click', _clicFueraSem);
+}
+function cambiarAnioSelSem(delta) { _anioSelSem += delta; renderPopoverSemana(); }
+
+function renderPopoverSemana() {
+    const pop = document.getElementById('popoverSemana');
+    const isoActiva = fechaAISOWeek(lunesActivo);
+    let lista = '';
+    semanasDelAnio(_anioSelSem).forEach(({ w, lun, vie }) => {
+        const iso = `${_anioSelSem}-W${String(w).padStart(2, '0')}`;
+        const activa = iso === isoActiva;
+        const rango = `${lun.getDate()} ${MESES_CORTOS_SEM[lun.getMonth()]} \u2013 ${vie.getDate()} ${MESES_CORTOS_SEM[vie.getMonth()]}`;
+        lista += `<button type="button" data-activa="${activa ? 1 : 0}" onclick="saltarASemana(${_anioSelSem}, ${w})" class="w-full text-left px-3 py-2 rounded-lg text-sm transition flex items-center justify-between gap-3 ${activa ? 'bg-brand-600 text-white shadow' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}"><span class="font-bold whitespace-nowrap">Semana ${w}</span><span class="${activa ? 'text-blue-100' : 'text-gray-400'} text-xs whitespace-nowrap">${rango}</span></button>`;
+    });
+    pop.innerHTML =
+        `<div class="flex items-center justify-between mb-2 px-1">
+            <button type="button" onclick="cambiarAnioSelSem(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 font-black text-lg">\u2039</button>
+            <span class="font-black text-gray-800 text-base">${_anioSelSem}</span>
+            <button type="button" onclick="cambiarAnioSelSem(1)" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 font-black text-lg">\u203a</button>
+        </div>
+        <div class="max-h-64 overflow-y-auto space-y-1 pr-1">${lista}</div>`;
+}
+
+// Salto directo a una semana desde el dropdown.
+function saltarASemana(y, w) {
+    lunesActivo = lunesDeSemanaISO(y, w);
+    _cerrarSelectorSemana();
+    renderizar();
+}
+
 // redondearHoras() es global (ui/js/famex-ui.js → window.redondearHoras).
 
 function obtenerDiaSemana(prestador, fechaISO) {

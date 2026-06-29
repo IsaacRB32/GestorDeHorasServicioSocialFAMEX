@@ -31,6 +31,55 @@ function cambiarMes(direccion) {
     renderizarCalendarios(); // Sin fetch — usa caché
 }
 
+// ===== Selector Mes/Año (dropdown Tailwind, sin inputs nativos) =====
+const MESES_CORTOS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+let _anioSelMes = null;
+
+function toggleSelectorMes(ev) {
+    ev.stopPropagation();
+    const pop = document.getElementById('popoverMes');
+    if (!pop.classList.contains('hidden')) { _cerrarSelectorMes(); return; }
+    _anioSelMes = fechaActual.getFullYear();
+    renderPopoverMes();
+    pop.classList.remove('hidden');
+    setTimeout(() => document.addEventListener('click', _clicFueraMes), 0);
+}
+function _clicFueraMes(e) {
+    const pop = document.getElementById('popoverMes');
+    if (pop && !pop.contains(e.target)) _cerrarSelectorMes();
+}
+function _cerrarSelectorMes() {
+    const pop = document.getElementById('popoverMes');
+    if (pop) pop.classList.add('hidden');
+    document.removeEventListener('click', _clicFueraMes);
+}
+function cambiarAnioSelMes(delta) { _anioSelMes += delta; renderPopoverMes(); }
+
+function renderPopoverMes() {
+    const pop = document.getElementById('popoverMes');
+    const mesActivo = fechaActual.getMonth();
+    const anioActivo = fechaActual.getFullYear();
+    let grid = '';
+    for (let i = 0; i < 12; i++) {
+        const activo = (i === mesActivo && _anioSelMes === anioActivo);
+        grid += `<button type="button" onclick="saltarAMes(${_anioSelMes}, ${i})" class="py-2 rounded-lg text-sm font-bold transition ${activo ? 'bg-brand-600 text-white shadow' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}">${MESES_CORTOS[i]}</button>`;
+    }
+    pop.innerHTML =
+        `<div class="flex items-center justify-between mb-3">
+            <button type="button" onclick="cambiarAnioSelMes(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 font-black text-lg">\u2039</button>
+            <span class="font-black text-gray-800 text-base">${_anioSelMes}</span>
+            <button type="button" onclick="cambiarAnioSelMes(1)" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 font-black text-lg">\u203a</button>
+        </div>
+        <div class="grid grid-cols-3 gap-2">${grid}</div>`;
+}
+
+// Salto directo a un mes/año desde el dropdown.
+function saltarAMes(anio, mesIndex) {
+    fechaActual = new Date(anio, mesIndex, 1);
+    _cerrarSelectorMes();
+    renderizarCalendarios(); // usa caché, sin fetch
+}
+
 function renderizarCalendarios() {
     const year = fechaActual.getFullYear();
     const month = fechaActual.getMonth();

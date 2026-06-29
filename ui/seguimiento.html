@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <title>Seguimiento de Prestadores</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="js/famex-ui.js?v=9"></script>
-    <link href="css/style.css?v=9" rel="stylesheet">
+    <script src="js/famex-ui.js?v=11"></script>
+    <link href="css/style.css?v=11" rel="stylesheet">
 </head>
 <body class="flex h-screen bg-slate-50 overflow-hidden">
         <famex-sidebar class="w-64 flex-shrink-0"></famex-sidebar>
@@ -19,7 +19,13 @@
                 
                 <div class="flex items-center space-x-3 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
                     <button onclick="cambiarMes(-1)" class="px-3 py-1 bg-white rounded shadow-sm border border-gray-200 hover:bg-blue-50 hover:text-blue-600 font-bold transition">&lt;</button>
-                    <span id="labelMesActual" class="font-bold w-36 text-center text-gray-700 uppercase tracking-wide text-sm">Mayo 2026</span>
+                    <div class="relative">
+                        <button type="button" onclick="toggleSelectorMes(event)" class="w-40 px-2 py-1 rounded-lg hover:bg-blue-50 transition flex items-center justify-center gap-1.5">
+                            <span id="labelMesActual" class="font-bold text-gray-700 uppercase tracking-wide text-sm">Mayo 2026</span>
+                            <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                        </button>
+                        <div id="popoverMes" class="hidden absolute z-50 mt-2 left-1/2 -translate-x-1/2 w-64 bg-white rounded-xl shadow-lg ring-1 ring-gray-200 p-3"></div>
+                    </div>
                     <button onclick="cambiarMes(1)" class="px-3 py-1 bg-white rounded shadow-sm border border-gray-200 hover:bg-blue-50 hover:text-blue-600 font-bold transition">&gt;</button>
                 </div>
 
@@ -140,7 +146,7 @@
         </div>
     </div>
 
-    <script src="js/seguimiento.js?v=9"></script>
+    <script src="js/seguimiento.js?v=11"></script>
 
 </body>
 </html>
