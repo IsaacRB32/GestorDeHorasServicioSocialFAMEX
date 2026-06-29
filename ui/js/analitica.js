@@ -71,8 +71,11 @@ function lunesDeSemanaISO(y, w) {
     return new Date(simple.getUTCFullYear(), simple.getUTCMonth(), simple.getUTCDate());
 }
 
-// ===== Selector de Semana (dropdown Tailwind, sin inputs nativos) =====
+// ===== Selector de Semana (dropdown Tailwind, AGRUPADO POR MES) =====
 const MESES_CORTOS_SEM = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const MESES_LARGOS_SEM = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const _CHEVRON_IZQ_S = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>';
+const _CHEVRON_DER_S = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>';
 let _anioSelSem = null;
 
 function semanasDelAnio(y) {
@@ -85,16 +88,41 @@ function semanasDelAnio(y) {
     }
     return arr;
 }
+
+// Mes (0-11) donde la semana laboral (Lun..Vie) tiene MAS dias; empate -> mes de inicio.
+function mesDeSemana(lun) {
+    const cuenta = {};
+    const d = new Date(lun);
+    for (let i = 0; i < 5; i++) {
+        cuenta[d.getMonth()] = (cuenta[d.getMonth()] || 0) + 1;
+        d.setDate(d.getDate() + 1);
+    }
+    let mejor = lun.getMonth(), max = -1;
+    Object.keys(cuenta).map(Number).sort((a, b) => a - b).forEach(m => {
+        if (cuenta[m] > max) { max = cuenta[m]; mejor = m; }
+    });
+    return mejor;
+}
+
 function toggleSelectorSemana(ev) {
-    ev.stopPropagation();
+    if (ev) { ev.preventDefault(); ev.stopPropagation(); }
     const pop = document.getElementById('popoverSemana');
     if (!pop.classList.contains('hidden')) { _cerrarSelectorSemana(); return; }
+    pop.onclick = function (e) { e.stopPropagation(); };
     _anioSelSem = lunesActivo.getFullYear();
     renderPopoverSemana();
     pop.classList.remove('hidden');
     setTimeout(() => document.addEventListener('click', _clicFueraSem), 0);
+    // Auto-scroll a la semana activa SOLO dentro del contenedor scrollable del
+    // popover. NO usamos scrollIntoView: arrastraba la pagina entera hacia abajo
+    // porque propaga el desplazamiento a todos los ancestros (incluido document).
+    const cont = pop.querySelector('.overflow-y-auto');
     const act = pop.querySelector('[data-activa="1"]');
-    if (act) act.scrollIntoView({ block: 'center' });
+    if (cont && act) {
+        const rAct = act.getBoundingClientRect();
+        const rCont = cont.getBoundingClientRect();
+        cont.scrollTop += (rAct.top - rCont.top) - (cont.clientHeight / 2) + (act.clientHeight / 2);
+    }
 }
 function _clicFueraSem(e) {
     const pop = document.getElementById('popoverSemana');
@@ -110,20 +138,31 @@ function cambiarAnioSelSem(delta) { _anioSelSem += delta; renderPopoverSemana();
 function renderPopoverSemana() {
     const pop = document.getElementById('popoverSemana');
     const isoActiva = fechaAISOWeek(lunesActivo);
-    let lista = '';
-    semanasDelAnio(_anioSelSem).forEach(({ w, lun, vie }) => {
-        const iso = `${_anioSelSem}-W${String(w).padStart(2, '0')}`;
-        const activa = iso === isoActiva;
-        const rango = `${lun.getDate()} ${MESES_CORTOS_SEM[lun.getMonth()]} \u2013 ${vie.getDate()} ${MESES_CORTOS_SEM[vie.getMonth()]}`;
-        lista += `<button type="button" data-activa="${activa ? 1 : 0}" onclick="saltarASemana(${_anioSelSem}, ${w})" class="w-full text-left px-3 py-2 rounded-lg text-sm transition flex items-center justify-between gap-3 ${activa ? 'bg-brand-600 text-white shadow' : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700'}"><span class="font-bold whitespace-nowrap">Semana ${w}</span><span class="${activa ? 'text-blue-100' : 'text-gray-400'} text-xs whitespace-nowrap">${rango}</span></button>`;
+    const grupos = {};
+    semanasDelAnio(_anioSelSem).forEach(sem => {
+        const m = mesDeSemana(sem.lun);
+        (grupos[m] = grupos[m] || []).push(sem);
+    });
+    let cuerpo = '';
+    Object.keys(grupos).map(Number).sort((a, b) => a - b).forEach(m => {
+        let chips = '';
+        grupos[m].forEach(({ w, lun, vie }) => {
+            const iso = `${_anioSelSem}-W${String(w).padStart(2, '0')}`;
+            const activa = iso === isoActiva;
+            const rango = (lun.getMonth() === vie.getMonth())
+                ? `${lun.getDate()} - ${vie.getDate()} ${MESES_CORTOS_SEM[vie.getMonth()]}`
+                : `${lun.getDate()} ${MESES_CORTOS_SEM[lun.getMonth()]} - ${vie.getDate()} ${MESES_CORTOS_SEM[vie.getMonth()]}`;
+            chips += `<button type="button" data-activa="${activa ? 1 : 0}" onclick="saltarASemana(${_anioSelSem}, ${w})" class="text-left px-2.5 py-1.5 rounded-lg text-xs font-bold border transition ${activa ? 'bg-brand-600 text-white border-brand-600 shadow' : 'bg-white text-gray-600 border-gray-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200'}">${rango}</button>`;
+        });
+        cuerpo += `<div class="mb-2"><div class="px-1 pb-1 text-[11px] font-black uppercase tracking-wider text-gray-400">${MESES_LARGOS_SEM[m]}</div><div class="grid grid-cols-2 gap-1.5">${chips}</div></div>`;
     });
     pop.innerHTML =
         `<div class="flex items-center justify-between mb-2 px-1">
-            <button type="button" onclick="cambiarAnioSelSem(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 font-black text-lg">\u2039</button>
+            <button type="button" onclick="cambiarAnioSelSem(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition">${_CHEVRON_IZQ_S}</button>
             <span class="font-black text-gray-800 text-base">${_anioSelSem}</span>
-            <button type="button" onclick="cambiarAnioSelSem(1)" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 font-black text-lg">\u203a</button>
+            <button type="button" onclick="cambiarAnioSelSem(1)" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition">${_CHEVRON_DER_S}</button>
         </div>
-        <div class="max-h-64 overflow-y-auto space-y-1 pr-1">${lista}</div>`;
+        <div class="max-h-72 overflow-y-auto pr-1">${cuerpo}</div>`;
 }
 
 // Salto directo a una semana desde el dropdown.

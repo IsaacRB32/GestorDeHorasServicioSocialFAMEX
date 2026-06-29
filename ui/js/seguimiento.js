@@ -33,12 +33,16 @@ function cambiarMes(direccion) {
 
 // ===== Selector Mes/Año (dropdown Tailwind, sin inputs nativos) =====
 const MESES_CORTOS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const _CHEVRON_IZQ = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>';
+const _CHEVRON_DER = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>';
 let _anioSelMes = null;
 
 function toggleSelectorMes(ev) {
     ev.stopPropagation();
     const pop = document.getElementById('popoverMes');
     if (!pop.classList.contains('hidden')) { _cerrarSelectorMes(); return; }
+    // Clics DENTRO del popover no deben cerrarlo (evita que el re-render lo cierre).
+    pop.onclick = function (e) { e.stopPropagation(); };
     _anioSelMes = fechaActual.getFullYear();
     renderPopoverMes();
     pop.classList.remove('hidden');
@@ -66,9 +70,9 @@ function renderPopoverMes() {
     }
     pop.innerHTML =
         `<div class="flex items-center justify-between mb-3">
-            <button type="button" onclick="cambiarAnioSelMes(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 font-black text-lg">\u2039</button>
+            <button type="button" onclick="cambiarAnioSelMes(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition">${_CHEVRON_IZQ}</button>
             <span class="font-black text-gray-800 text-base">${_anioSelMes}</span>
-            <button type="button" onclick="cambiarAnioSelMes(1)" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 font-black text-lg">\u203a</button>
+            <button type="button" onclick="cambiarAnioSelMes(1)" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition">${_CHEVRON_DER}</button>
         </div>
         <div class="grid grid-cols-3 gap-2">${grid}</div>`;
 }
