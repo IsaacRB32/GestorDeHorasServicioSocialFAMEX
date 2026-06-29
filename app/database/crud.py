@@ -145,7 +145,7 @@ def listar_departamentos(conn) -> list[str]:
 def obtener_datos_seguimiento(conn) -> list[dict]:
     """Todos los prestadores con su detalle de registros (single LEFT JOIN, sin N+1)."""
     filas = conn.execute('''
-        SELECT p.id_checador, p.nombre, p.alias, p.departamento,
+        SELECT p.id_checador, p.nombre, p.alias, p.departamento, p.horas_obligatorias,
                r.fecha, r.horas_trabajadas, r.estatus,
                r.requiere_revision, r.hora_entrada, r.hora_salida
           FROM prestadores p
@@ -164,6 +164,7 @@ def obtener_datos_seguimiento(conn) -> list[dict]:
             prestador = mapa[pid] = {
                 "id": pid, "nombre": display, "nombre_checador": f["nombre"],
                 "departamento": f["departamento"],
+                "horas_obligatorias": f["horas_obligatorias"] or 480,
                 "horas_totales": 0.0, "faltas": 0, "justificantes": 0,
                 "revisiones": 0, "registros": [],
             }

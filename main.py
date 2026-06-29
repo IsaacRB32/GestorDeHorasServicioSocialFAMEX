@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core import config
 from app.database.db_config import bootstrap
-from app.api.routers import analitica, auth, prestadores, registros, seguimiento
+from app.api.routers import analitica, auth, backup, prestadores, registros, seguimiento
 
 
 @asynccontextmanager
@@ -26,6 +26,7 @@ app.include_router(prestadores.router, prefix="/api")
 app.include_router(registros.router, prefix="/api")
 app.include_router(seguimiento.router, prefix="/api")
 app.include_router(analitica.router, prefix="/api")
+app.include_router(backup.router, prefix="/api")
 
 
 @app.get("/")

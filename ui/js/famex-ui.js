@@ -120,6 +120,86 @@
   };
 
   // ====================================================================
+  //  MODALES DE NOTIFICACION / CONFIRMACION (reemplazan alert/confirm).
+  //  Inyectados una sola vez en el DOM; unificados con el diseno FAMEX.
+  //  Uso:  await famexAlert('msg', {tipo:'success'|'error'|'warning'|'info'})
+  //        if (await famexConfirm('msg', {peligro:true})) { ... }
+  // ====================================================================
+  var _ICONOS_MODAL = {
+    info:    { bg: 'bg-blue-100',    fg: 'text-blue-600',    d: 'M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z' },
+    success: { bg: 'bg-emerald-100', fg: 'text-emerald-600', d: 'M4.5 12.75l6 6 9-13.5' },
+    error:   { bg: 'bg-red-100',     fg: 'text-red-600',     d: 'M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
+    warning: { bg: 'bg-amber-100',   fg: 'text-amber-600',   d: 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z' },
+  };
+
+  function _famexModalEl() {
+    var m = document.getElementById('famexModal');
+    if (m) return m;
+    m = document.createElement('div');
+    m.id = 'famexModal';
+    m.className = 'no-print fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4';
+    m.innerHTML =
+      '<div class="bg-white rounded-2xl shadow-2xl w-[420px] max-w-[95vw] p-6 text-center">' +
+        '<div id="famexModalIcon" class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"></div>' +
+        '<h3 id="famexModalTitulo" class="text-lg font-black text-gray-800 mb-1"></h3>' +
+        '<p id="famexModalMsg" class="text-sm text-gray-500 mb-6 whitespace-pre-line"></p>' +
+        '<div id="famexModalBtns" class="flex justify-center gap-3"></div>' +
+      '</div>';
+    document.body.appendChild(m);
+    return m;
+  }
+
+  function _famexMostrar(o) {
+    return new Promise(function (resolve) {
+      var m = _famexModalEl();
+      var it = _ICONOS_MODAL[o.tipo] || _ICONOS_MODAL.info;
+      var icon = m.querySelector('#famexModalIcon');
+      icon.className = 'w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 ' + it.bg;
+      icon.innerHTML = '<svg class="w-7 h-7 ' + it.fg + '" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="' + it.d + '"/></svg>';
+      m.querySelector('#famexModalTitulo').textContent = o.titulo || (o.confirm ? 'Confirmar' : 'Aviso');
+      m.querySelector('#famexModalMsg').textContent = o.mensaje || '';
+      var btns = m.querySelector('#famexModalBtns');
+      btns.innerHTML = '';
+      function cerrar(val) {
+        m.classList.add('hidden'); m.classList.remove('flex');
+        document.removeEventListener('keydown', onKey);
+        resolve(val);
+      }
+      function onKey(e) {
+        if (e.key === 'Escape') cerrar(o.confirm ? false : undefined);
+        else if (e.key === 'Enter') cerrar(o.confirm ? true : undefined);
+      }
+      if (o.confirm) {
+        var cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.className = 'px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-bold transition text-sm';
+        cancel.textContent = o.cancelLabel || 'Cancelar';
+        cancel.onclick = function () { cerrar(false); };
+        btns.appendChild(cancel);
+      }
+      var ok = document.createElement('button');
+      ok.type = 'button';
+      ok.className = 'px-6 py-2.5 text-white rounded-xl font-bold shadow-lg transition text-sm ' +
+        (o.peligro ? 'bg-red-600 hover:bg-red-700' : 'bg-brand-600 hover:bg-brand-700');
+      ok.textContent = o.confirmLabel || 'Aceptar';
+      ok.onclick = function () { cerrar(o.confirm ? true : undefined); };
+      btns.appendChild(ok);
+      m.classList.remove('hidden'); m.classList.add('flex');
+      document.addEventListener('keydown', onKey);
+      ok.focus();
+    });
+  }
+
+  window.famexAlert = function (mensaje, opts) {
+    opts = opts || {};
+    return _famexMostrar({ mensaje: mensaje, titulo: opts.titulo, tipo: opts.tipo || 'info', confirm: false, confirmLabel: opts.confirmLabel || 'Aceptar' });
+  };
+  window.famexConfirm = function (mensaje, opts) {
+    opts = opts || {};
+    return _famexMostrar({ mensaje: mensaje, titulo: opts.titulo || 'Confirmar', tipo: opts.tipo || 'warning', confirm: true, confirmLabel: opts.confirmLabel || 'Confirmar', cancelLabel: opts.cancelLabel, peligro: opts.peligro });
+  };
+
+  // ====================================================================
   // 5) WEB COMPONENT <famex-sidebar>
   // ====================================================================
   var ICONOS = {

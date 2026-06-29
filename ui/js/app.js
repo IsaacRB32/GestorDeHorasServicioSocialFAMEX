@@ -82,13 +82,13 @@ async function generarPDF() {
                 registros: p.registros.filter(r => r.horas > 0).map(r => ({ fecha: r.fecha, horas: r.horas }))
             })).filter(p => p.registros.length > 0);
         } catch(e) {
-            alert('No hay datos disponibles para generar el PDF.');
+            await famexAlert('No hay datos disponibles para generar el PDF.', { tipo: 'error' });
             return;
         }
     }
 
     if (!datos || datos.length === 0) {
-        alert('No hay registros de horas para generar el PDF.');
+        await famexAlert('No hay registros de horas para generar el PDF.', { tipo: 'error' });
         return;
     }
 
@@ -172,7 +172,15 @@ async function generarPDF() {
         }
     });
 
-    doc.save(`resumen_semanal_FAMEX_${new Date().toISOString().slice(0, 10)}.pdf`);
+    // Imprimir en lugar de descargar: abre el PDF en una pestaña y dispara el
+    // dialogo de impresion (coherente con la hoja de firmas de Analitica).
+    doc.autoPrint();
+    const urlPDF = doc.output('bloburl');
+    const win = window.open(urlPDF, '_blank');
+    if (!win) {
+        // Popup bloqueado -> respaldo: descarga el archivo.
+        doc.save(`resumen_semanal_FAMEX_${new Date().toISOString().slice(0, 10)}.pdf`);
+    }
 }
 
 // ============ MIGRACIÓN HISTÓRICA (antes inline en index.html) ============
@@ -199,6 +207,64 @@ async function migrarHistorico() {
         status.className = 'mt-3 text-sm font-medium text-green-600';
     } catch (e) {
         status.innerText = `Error durante la migración: ${e.message}`;
+        status.className = 'mt-3 text-sm font-medium text-red-600';
+    }
+}
+
+// ============ MANTENIMIENTO / RESPALDOS ============
+async function exportarBackup() {
+    const status = document.getElementById('backupStatus');
+    status.innerText = 'Generando respaldo...';
+    status.className = 'mt-3 text-sm font-medium text-blue-600';
+    try {
+        const res = await apiFetch('/api/backup/exportar');
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || `Error del servidor (${res.status})`);
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `famex_backup_${new Date().toISOString().slice(0, 10)}.db`;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+        status.innerText = '\u2713 Respaldo descargado correctamente.';
+        status.className = 'mt-3 text-sm font-medium text-green-600';
+    } catch (e) {
+        status.innerText = `Error al exportar: ${e.message}`;
+        status.className = 'mt-3 text-sm font-medium text-red-600';
+    }
+}
+
+async function restaurarBackup() {
+    const input = document.getElementById('archivoBackup');
+    const status = document.getElementById('backupStatus');
+    if (!input.files.length) {
+        status.innerText = 'Selecciona un archivo .db de respaldo primero.';
+        status.className = 'mt-3 text-sm font-medium text-red-600';
+        return;
+    }
+    const okRestaurar = await famexConfirm(
+        'Esto reemplazará la base de datos actual por el respaldo seleccionado.\n\nSe guardará una copia de seguridad automática del estado actual antes de sobrescribir.',
+        { titulo: 'Restaurar respaldo', tipo: 'warning', confirmLabel: 'Sí, restaurar', peligro: true }
+    );
+    if (!okRestaurar) return;
+    const fd = new FormData(); fd.append('file', input.files[0]);
+    status.innerText = 'Restaurando respaldo...';
+    status.className = 'mt-3 text-sm font-medium text-blue-600';
+    try {
+        const res = await apiFetch('/api/backup/importar', { method: 'POST', body: fd });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || `Error del servidor (${res.status})`);
+        }
+        const r = await res.json();
+        status.innerText = `\u2713 ${r.mensaje}`;
+        status.className = 'mt-3 text-sm font-medium text-green-600';
+        setTimeout(() => location.reload(), 1500);
+    } catch (e) {
+        status.innerText = `Error al restaurar: ${e.message}`;
         status.className = 'mt-3 text-sm font-medium text-red-600';
     }
 }

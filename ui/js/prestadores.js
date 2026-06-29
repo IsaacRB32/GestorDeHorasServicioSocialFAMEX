@@ -227,10 +227,10 @@ async function confirmarEliminacion() {
             cargarDirectorio();
         } else {
             const err = await res.json().catch(() => ({}));
-            alert(err.detail || 'Error al eliminar');
+            famexAlert(err.detail || 'Error al eliminar', { tipo: 'error' });
         }
     } catch (e) {
-        alert('Error de conexión');
+        famexAlert('Error de conexión con el servidor.', { tipo: 'error' });
     }
 }
 

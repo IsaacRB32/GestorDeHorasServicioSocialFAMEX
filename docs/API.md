@@ -168,6 +168,7 @@ Endpoint usado por `seguimiento.html` (calendario) y como fallback en `index.htm
     "nombre": "Alexia Bernal",
     "nombre_checador": "ALEXIA BERNAL",
     "departamento": "LOGISTICA",
+    "horas_obligatorias": 480,
     "horas_totales": 124.5,
     "faltas": 2,
     "justificantes": 1,
@@ -341,6 +342,31 @@ Edita o crea un registro individual desde el calendario.
 curl -X POST http://127.0.0.1:8000/api/actualizar-dia \
   -H "Content-Type: application/json" \
   -d '{"id_checador":1,"fecha":"2026-05-15","horas":0,"estatus":"Falta"}'
+```
+
+---
+
+### 2.15. `GET /api/backup/exportar`
+
+**(Requiere `Bearer`.)** Devuelve una copia íntegra de `data/asistencias.db` como descarga (`application/octet-stream`). Usa `sqlite3.Connection.backup()` (snapshot consistente, **seguro con WAL**) tras un `PRAGMA wal_checkpoint(TRUNCATE)`. El archivo se nombra `famex_backup_YYYYMMDD_HHMMSS.db` y el temporal se elimina tras el envío (`BackgroundTask`).
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  -o respaldo.db http://127.0.0.1:8000/api/backup/exportar
+```
+
+---
+
+### 2.16. `POST /api/backup/importar`
+
+**(Requiere `Bearer`.)** Recibe un `.db` (`multipart`, campo `file`), lo **valida** (`PRAGMA integrity_check` + presencia de las tablas `prestadores` y `registros`), guarda una copia de seguridad del estado actual (`asistencias.db.pre_import.bak`), elimina los auxiliares `-wal`/`-shm`, reemplaza la BD de forma atómica (`os.replace`) y re-aplica las migraciones idempotentes (`bootstrap()`).
+
+**Respuesta 200:** `{"mensaje": "Respaldo restaurado correctamente. Recarga la página..."}`
+**Error 400:** `{"detail": "El archivo no es un respaldo válido de FAMEX (.db)"}`.
+
+```bash
+curl -s -X POST -H "Authorization: Bearer $TOKEN" \
+  -F "file=@respaldo.db" http://127.0.0.1:8000/api/backup/importar
 ```
 
 ---

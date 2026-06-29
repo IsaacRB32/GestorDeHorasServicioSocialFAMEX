@@ -59,7 +59,8 @@ function renderizarCalendarios() {
 
     for (const prestador of datosGlobales) {
         const mapa = construirMapaRegistros(prestador);
-        const porcentaje = Math.min((prestador.horas_totales / 480) * 100, 100).toFixed(1);
+        const meta = prestador.horas_obligatorias || 480;
+        const porcentaje = Math.min((prestador.horas_totales / meta) * 100, 100).toFixed(1);
 
         // Celdas de días
         let diasHtml = '';
@@ -92,11 +93,11 @@ function renderizarCalendarios() {
             diasHtml += `<div class="${cls} relative h-16 flex flex-col justify-center items-center cursor-pointer border-b border-r border-gray-200 dia-celda" data-pid="${prestador.id}" data-fecha="${fecha}"><span class="absolute top-1 left-1.5 text-[10px] font-bold text-gray-400">${dia}</span>${inner}</div>`;
         }
 
-        const btnBaja = prestador.horas_totales >= 480
+        const btnBaja = prestador.horas_totales >= meta
             ? `<button class="btn-baja bg-red-600 hover:bg-red-700 text-white text-xs font-black px-3 py-1.5 rounded-lg shadow-md shadow-red-200 transition flex items-center gap-1" data-pid="${prestador.id}" data-nombre="${prestador.nombre}"><span>✓</span> Dar de Baja</button>`
             : '';
 
-        partes.push(`<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden prestador-card" data-depto="${prestador.departamento}" data-nombre="${prestador.nombre.toLowerCase()}"><div class="p-5 border-b border-gray-100 bg-slate-50 flex justify-between items-center"><div><div class="mb-1.5">${badgeDepto(prestador.departamento)}</div><h3 class="text-lg font-black text-gray-800 leading-tight">${prestador.nombre}</h3><p class="text-xs text-gray-500 font-medium mt-0.5">ID Checador: ${prestador.id}</p></div><div class="text-right flex flex-col items-end gap-2"><div class="text-3xl font-black text-gray-800">${prestador.horas_totales}<span class="text-sm font-medium text-gray-400 ml-1">/ 480h</span></div>${btnBaja}</div></div><div class="p-5"><div class="flex justify-between items-end mb-4"><div class="w-1/2"><div class="flex justify-between text-xs mb-1 font-semibold text-gray-500"><span>Progreso Global</span><span>${porcentaje}%</span></div><div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-blue-500 h-2 rounded-full" style="width:${porcentaje}%"></div></div></div><div class="flex space-x-2"><span class="bg-red-50 text-red-600 border border-red-100 px-2.5 py-1 rounded text-xs font-bold">Faltas: ${prestador.faltas}</span><span class="bg-yellow-50 text-yellow-700 border border-yellow-100 px-2.5 py-1 rounded text-xs font-bold">Justificantes: ${prestador.justificantes}</span>${prestador.revisiones > 0 ? `<span class="bg-orange-100 text-orange-700 border border-orange-300 px-2.5 py-1 rounded text-xs font-black">⚠ ${prestador.revisiones} por revisar</span>` : ''}</div></div><div class="border-t border-l border-gray-200 rounded overflow-hidden"><div class="grid grid-cols-5 bg-gray-100 border-b border-gray-200 text-[10px] font-black text-gray-500 uppercase tracking-wider"><div class="py-2 text-center border-r border-gray-200">Lun</div><div class="py-2 text-center border-r border-gray-200">Mar</div><div class="py-2 text-center border-r border-gray-200">Mié</div><div class="py-2 text-center border-r border-gray-200">Jue</div><div class="py-2 text-center border-r border-gray-200">Vie</div></div><div class="grid grid-cols-5 bg-gray-200">${diasHtml}</div></div></div></div>`);
+        partes.push(`<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden prestador-card" data-depto="${prestador.departamento}" data-nombre="${prestador.nombre.toLowerCase()}"><div class="p-5 border-b border-gray-100 bg-slate-50 flex justify-between items-center"><div><div class="mb-1.5">${badgeDepto(prestador.departamento)}</div><h3 class="text-lg font-black text-gray-800 leading-tight">${prestador.nombre}</h3><p class="text-xs text-gray-500 font-medium mt-0.5">ID Checador: ${prestador.id}</p></div><div class="text-right flex flex-col items-end gap-2"><div class="text-3xl font-black text-gray-800">${prestador.horas_totales}<span class="text-sm font-medium text-gray-400 ml-1">/ ${meta}h</span></div>${btnBaja}</div></div><div class="p-5"><div class="flex justify-between items-end mb-4"><div class="w-1/2"><div class="flex justify-between text-xs mb-1 font-semibold text-gray-500"><span>Progreso Global</span><span>${porcentaje}%</span></div><div class="w-full bg-gray-200 rounded-full h-2"><div class="bg-blue-500 h-2 rounded-full" style="width:${porcentaje}%"></div></div></div><div class="flex space-x-2"><span class="bg-red-50 text-red-600 border border-red-100 px-2.5 py-1 rounded text-xs font-bold">Faltas: ${prestador.faltas}</span><span class="bg-yellow-50 text-yellow-700 border border-yellow-100 px-2.5 py-1 rounded text-xs font-bold">Justificantes: ${prestador.justificantes}</span>${prestador.revisiones > 0 ? `<span class="bg-orange-100 text-orange-700 border border-orange-300 px-2.5 py-1 rounded text-xs font-black">⚠ ${prestador.revisiones} por revisar</span>` : ''}</div></div><div class="border-t border-l border-gray-200 rounded overflow-hidden"><div class="grid grid-cols-5 bg-gray-100 border-b border-gray-200 text-[10px] font-black text-gray-500 uppercase tracking-wider"><div class="py-2 text-center border-r border-gray-200">Lun</div><div class="py-2 text-center border-r border-gray-200">Mar</div><div class="py-2 text-center border-r border-gray-200">Mié</div><div class="py-2 text-center border-r border-gray-200">Jue</div><div class="py-2 text-center border-r border-gray-200">Vie</div></div><div class="grid grid-cols-5 bg-gray-200">${diasHtml}</div></div></div></div>`);
     }
 
     contenedor.innerHTML = partes.join('');
@@ -260,7 +261,7 @@ async function guardarEdicion() {
         } else {
             const resultadoVisible = !document.getElementById('resultadoCalculo').classList.contains('hidden');
             if (!resultadoVisible) {
-                alert('Ingresa las horas de inicio y fin para calcular el rango.');
+                await famexAlert('Ingresa las horas de inicio y fin para calcular el rango.', { tipo: 'warning' });
                 return;
             }
             horas = parseFloat(document.getElementById('horasRedondeadas').innerText) || 0;
@@ -282,23 +283,27 @@ async function guardarEdicion() {
         if (res.ok) { cerrarModal(); cargarSeguimiento(true); }
     } catch (e) {
         console.error('Error al guardar:', e);
-        alert('Hubo un error al guardar los cambios.');
+        famexAlert('Hubo un error al guardar los cambios.', { tipo: 'error' });
     }
 }
 
     async function darDeBaja(id, nombre) {
-    if (!confirm(`¿Confirmas dar de baja a ${nombre}?\n\nEsta acción eliminará al prestador y TODOS sus registros del sistema. No se puede deshacer.`)) return;
+    const okBaja = await famexConfirm(
+        `Vas a dar de baja a ${nombre}.\n\nEsto eliminará al prestador y TODOS sus registros del sistema. Esta acción no se puede deshacer.`,
+        { titulo: 'Confirmar baja', tipo: 'warning', confirmLabel: 'Sí, dar de baja', peligro: true }
+    );
+    if (!okBaja) return;
     try {
         const res = await apiFetch(`/api/prestadores/${id}`, { method: 'DELETE' });
         if (res.ok) {
-            alert(`${nombre} fue dado de baja exitosamente.`);
+            await famexAlert(`${nombre} fue dado de baja exitosamente.`, { tipo: 'success' });
             cargarSeguimiento(true);
         } else {
             const err = await res.json();
-            alert(`Error: ${err.detail}`);
+            famexAlert(`Error: ${err.detail}`, { tipo: 'error' });
         }
     } catch (e) {
-        alert('Error de conexión al dar de baja.');
+        famexAlert('Error de conexión al dar de baja.', { tipo: 'error' });
     }
 }
 

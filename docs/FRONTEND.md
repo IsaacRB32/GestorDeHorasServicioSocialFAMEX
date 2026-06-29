@@ -45,7 +45,7 @@ Estructura compartida: todas (menos `login`) renderizan el menú lateral con una
 
 - `<input type="file" id="archivoExcel" accept=".xlsx">`
 - Botón `Procesar Archivo` → llama `subirExcel()` (en `app.js`).
-- Tras éxito: muestra cantidad de registros procesados, habilita botón verde `Descargar Resumen PDF`, refresca tabla de estado.
+- Tras éxito: muestra cantidad de registros procesados, habilita botón verde `Imprimir Resumen Semanal`, refresca tabla de estado.
 
 ### 3.2. Sección "Migrar Datos Históricos" (ámbar)
 
@@ -60,7 +60,8 @@ Estructura compartida: todas (menos `login`) renderizan el menú lateral con una
 | `cargarTablaEstado()` | `GET /api/seguimiento-datos` y pinta tabla resumen (ID · Nombre · Departamento · Horas Totales). Se ejecuta on `DOMContentLoaded` y tras cada upload. |
 | `subirExcel()` | `POST /api/upload-reporte` (multipart). Guarda `tabla_pdf` en `tablaPDFData` para el PDF. |
 | `redondearHoras(horas)` | Réplica exacta del algoritmo backend ([`BUSINESS_LOGIC.md §1`](BUSINESS_LOGIC.md#1-redondeo-de-horas)). |
-| `generarPDF()` | Construye el PDF semanal con jsPDF + autoTable. Si `tabla_pdf` no está (e.g. refresh), hace fallback a `GET /api/seguimiento-datos`. |
+| `generarPDF()` | Construye el PDF semanal con jsPDF + autoTable. **Lo abre en una pestaña con el diálogo de impresión** (`doc.autoPrint()` + `window.open(doc.output('bloburl'))`), ya no lo descarga; si el popup se bloquea, cae a `doc.save()`. Si `tabla_pdf` no está (e.g. refresh), hace fallback a `GET /api/seguimiento-datos`. |
+| `exportarBackup()` / `restaurarBackup()` | Sección **Mantenimiento / Respaldos**: descargan/suben el `.db` vía `apiFetch` (con `Bearer`) contra `/api/backup/*`. Tras restaurar, recargan la página. |
 
 ### 3.4. PDF semanal — detalles
 
@@ -75,7 +76,7 @@ Estructura compartida: todas (menos `login`) renderizan el menú lateral con una
 1. Login y entrar a `/ui/index.html`.
 2. Subir un Excel con hoja `Registros de asistencia` → debe aparecer `¡Reporte cargado con éxito! Se guardaron N registros.`
 3. La tabla inferior debe poblarse con los prestadores y sus horas totales.
-4. Clic en `Descargar Resumen PDF` → descarga `.pdf` con la matriz por día.
+4. Clic en `Imprimir Resumen Semanal` → abre el PDF en una pestaña y dispara el diálogo de impresión (si el popup se bloquea, lo descarga).
 5. Subir el mismo archivo otra vez → `procesados` debe ser igual; **no** debe haber duplicados (validar con `SELECT COUNT(*) FROM registros` en SQLite).
 
 ---
@@ -124,6 +125,8 @@ Estructura compartida: todas (menos `login`) renderizan el menú lateral con una
   - `Falta` → rojo.
   - `Justificante` → amarillo/ámbar.
   - Sin registro → gris claro.
+
+> **Meta dinámica:** el progreso (`%`), la meta mostrada (`/ Nh`) y el umbral del botón *Dar de Baja* usan `prestador.horas_obligatorias` (devuelto por `/api/seguimiento-datos`), ya **no** el `480` hard‑codeado. Soporta prestadores de 600 h, etc.
   - **`requiere_revision` (anomalía del checador) → ámbar `⚠ REVISAR`** (alerta visual distintiva).
 
 > **Colores por departamento:** la cabecera de cada tarjeta usa `window.badgeDepto()` del núcleo compartido (`famex-ui.js`), por lo que mantiene la **misma identidad cromática** que el Directorio y la Analítica.
@@ -203,6 +206,7 @@ Módulo IIFE cargado en el `<head>` de las 5 vistas, inmediatamente después del
 | **`apiFetch(url, options)`** | Wrapper de `fetch` que añade el header `Authorization: Bearer <token>`. Ante un `401` (salvo en `/api/login`) limpia el token y redirige al login. Usa `Headers` para no romper subidas `multipart`. Expuesto como `window.apiFetch`. |
 | **`famexLogout()`** | Limpia las llaves de sesión y vuelve a `login.html`. Lo invoca el botón del sidebar. |
 | **`<famex-sidebar>`** | Custom Element (light DOM, para que apliquen las utilidades del CDN) que renderiza el menú lateral con ítem activo automático. |
+| **`famexAlert` / `famexConfirm`** | **Modales de notificación/confirmación** (Promesas) que reemplazan a `alert`/`confirm` nativos: inyectan un modal Tailwind unificado (fondo translúcido, tarjeta centrada, icono por `tipo` info/success/error/warning) una sola vez en el DOM. `famexConfirm` resuelve `true`/`false`. **El frontend ya no usa ninguna alerta nativa.** |
 
 > **Seguridad engranada:** como `apiFetch` envía el `Bearer`, los routers `prestadores`, `registros`, `seguimiento` y `analitica` ya exigen token server‑side (`dependencies=[Depends(require_auth)]`). El router `auth` permanece público. Ver [`API.md`](API.md) y [`BUSINESS_LOGIC.md §5`](BUSINESS_LOGIC.md#5-autenticación).
 

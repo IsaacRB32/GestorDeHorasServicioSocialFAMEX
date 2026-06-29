@@ -38,7 +38,7 @@ Detalle completo de visión, módulos y flujos en [`docs/ARCHITECTURE.md`](docs/
 - HTML5 vanilla — 5 páginas independientes (`login`, `index`, `prestadores`, `seguimiento`, `analitica`)
 - JavaScript clásico (sin framework, sin bundler) — núcleo compartido `ui/js/famex-ui.js` + un módulo por vista (`app.js`, `prestadores.js`, `seguimiento.js`, `analitica.js`)
 - [Tailwind CSS](https://tailwindcss.com/) vía CDN (`https://cdn.tailwindcss.com`) — utilidad de estilo
-- [jsPDF 2.5.1](https://github.com/parallax/jsPDF) + `jspdf-autotable 3.8.2` — generación cliente del PDF semanal
+- [jsPDF 2.5.1](https://github.com/parallax/jsPDF) + `jspdf-autotable 3.8.2` — generación e **impresión** cliente del PDF semanal (`autoPrint` + apertura en pestaña, ya no descarga automática)
 - `@media print` nativo — hoja de firmas optimizada para impresión carta vertical
 
 ---
@@ -90,7 +90,7 @@ Abrir el navegador en: **http://127.0.0.1:8000** → redirige automáticamente a
 
 ### Verificación funcional rápida (smoke test)
 1. **Login** → `admin` / `famex2026` debe redirigir a `index.html`.
-2. **Panel de Carga** → subir un Excel de checador con hoja `Registros de asistencia` → debe mostrar `¡Reporte cargado con éxito!` y habilitar el botón verde *Descargar Resumen PDF*.
+2. **Panel de Carga** → subir un Excel de checador con hoja `Registros de asistencia` → debe mostrar `¡Reporte cargado con éxito!` y habilitar el botón verde *Imprimir Resumen Semanal*.
 3. **Directorio** → debe listar al menos al prestador semilla `ALEXIA BERNAL` (id 1, LOGISTICA).
 4. **Expedientes** → seleccionar mes, hacer clic en un día del calendario, marcar `Falta` o `Asistencia con horas` → al cerrar el modal el día debe quedar coloreado.
 5. **Analítica Global** → vista de hoja de firmas; `Ctrl + P` debe mostrar layout limpio carta vertical sin sidebar.
@@ -186,7 +186,18 @@ Explicación detallada de cada capa en [`docs/ARCHITECTURE.md`](docs/ARCHITECTUR
 
 ---
 
-## 8. Roadmap / pendientes conocidos
+## 8. Novedades recientes (features)
+
+- **Respaldo y restauración de la BD** (`app/api/routers/backup.py`): `GET /api/backup/exportar` descarga una copia íntegra (`sqlite3 backup()`, WAL-safe) y `POST /api/backup/importar` valida y reemplaza la BD de forma atómica (con copia `.pre_import.bak` y `bootstrap()`). UI en el Dashboard → sección **Mantenimiento / Respaldos**. Detalle en [`docs/API.md`](docs/API.md) y [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+- **Horas obligatorias dinámicas**: el progreso, la meta mostrada y el umbral de baja en Expedientes usan `prestadores.horas_obligatorias` (devuelto por `/api/seguimiento-datos`), ya no `480` hard-codeado. Soporta 600 h, etc.
+- **Alias de prestadores**: nombre formal limpio con fallback al nombre del checador; se imprime en hoja de firmas y reportes. Ver [`docs/BUSINESS_LOGIC.md §10`](docs/BUSINESS_LOGIC.md).
+- **Anomalías del checador** (`requiere_revision`): celdas que no son un par exacto Entrada/Salida se marcan y resaltan en ámbar en Expedientes para corrección manual. Ver [`docs/BUSINESS_LOGIC.md §11`](docs/BUSINESS_LOGIC.md).
+- **PDF semanal se imprime** (no se descarga): `generarPDF` usa `doc.autoPrint()` + apertura en pestaña, coherente con la hoja de firmas.
+- **UI sin alertas nativas**: todas las notificaciones/confirmaciones usan los modales `window.famexAlert` / `window.famexConfirm` (en `famex-ui.js`), unificados con el diseño FAMEX.
+
+---
+
+## 9. Roadmap / pendientes conocidos
 
 - ~~`app/api/rutas.py` es un router legado no montado~~ ✅ **Resuelto:** endpoints migrados a `app/api/routers/` (`APIRouter`) y stub eliminado.
 - ~~Endpoints concentrados en `main.py`~~ ✅ **Resuelto:** `main.py` ahora solo arma la app (lifespan + include_router + estáticos).

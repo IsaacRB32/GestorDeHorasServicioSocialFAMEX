@@ -59,7 +59,8 @@ app/
 │       ├── prestadores.py    # CRUD prestadores + /departamentos
 │       ├── registros.py      # /upload-reporte, /migrar-historico, /actualizar-dia
 │       ├── seguimiento.py    # /dashboard/{id}, /seguimiento-datos
-│       └── analitica.py      # /analitica-general
+│       ├── analitica.py      # /analitica-general
+│       └── backup.py        # /backup/exportar, /backup/importar (respaldo BD)
 ├── database/
 │   ├── db_config.py          # Conexión (FK+WAL) + get_db/transaccion + DDL + bootstrap
 │   └── crud.py               # Operaciones de persistencia (conexión inyectada)
@@ -214,5 +215,7 @@ La función `redondear_horas` existe **dos veces**: una en `procesador_excel.py`
 | PUT | `/api/prestadores/{id}` | `routers/prestadores.py::actualizar` |
 | DELETE | `/api/prestadores/{id}` | `routers/prestadores.py::eliminar` |
 | GET | `/api/departamentos` | `routers/prestadores.py::departamentos` |
+| GET | `/api/backup/exportar` | `routers/backup.py::exportar` |
+| POST | `/api/backup/importar` | `routers/backup.py::importar` |
 
 Especificación detallada (payload, respuesta, ejemplos `curl`) en [`API.md`](API.md).
