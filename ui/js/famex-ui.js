@@ -102,6 +102,24 @@
   };
 
   // ====================================================================
+  //  PALETA DE DEPARTAMENTOS — núcleo visual compartido. Directorio,
+  //  Expedientes y Analítica usan la MISMA identidad cromática.
+  // ====================================================================
+  window.DEPTO_BADGE = {
+    'LOGISTICA':           'bg-blue-100 text-blue-700 border-blue-200',
+    'OPERACIONES':         'bg-emerald-100 text-emerald-700 border-emerald-200',
+    'COMERCIAL':           'bg-violet-100 text-violet-700 border-violet-200',
+    'PUBLICIDAD':          'bg-amber-100 text-amber-700 border-amber-200',
+    'RELACIONES PUBLICAS': 'bg-pink-100 text-pink-700 border-pink-200',
+    'ADQUISICIONES':       'bg-cyan-100 text-cyan-700 border-cyan-200',
+    'General':             'bg-gray-100 text-gray-600 border-gray-200',
+  };
+  window.badgeDepto = function (depto) {
+    var cls = window.DEPTO_BADGE[depto] || window.DEPTO_BADGE['General'];
+    return '<span class="inline-block px-2.5 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider border ' + cls + '">' + depto + '</span>';
+  };
+
+  // ====================================================================
   // 5) WEB COMPONENT <famex-sidebar>
   // ====================================================================
   var ICONOS = {

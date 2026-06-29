@@ -25,7 +25,7 @@ def departamentos(db: sqlite3.Connection = Depends(get_db)):
 def crear(datos: PrestadorInput, db: sqlite3.Connection = Depends(get_db)):
     ok = crud.registrar_prestador(
         db, datos.id_checador, datos.nombre, datos.departamento,
-        datos.fecha_inicio, datos.fecha_termino, datos.horas_obligatorias, datos.sexo,
+        datos.fecha_inicio, datos.fecha_termino, datos.horas_obligatorias, datos.sexo, datos.alias,
     )
     if not ok:
         raise HTTPException(
@@ -39,7 +39,7 @@ def crear(datos: PrestadorInput, db: sqlite3.Connection = Depends(get_db)):
 def actualizar(id_checador: int, datos: PrestadorInput, db: sqlite3.Connection = Depends(get_db)):
     filas = crud.actualizar_prestador(
         db, id_checador, datos.nombre, datos.departamento, datos.sexo,
-        datos.fecha_inicio, datos.fecha_termino, datos.horas_obligatorias,
+        datos.fecha_inicio, datos.fecha_termino, datos.horas_obligatorias, datos.alias,
     )
     if filas == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prestador no encontrado")

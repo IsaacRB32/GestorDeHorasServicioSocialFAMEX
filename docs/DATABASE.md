@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS prestadores (
     fecha_termino      DATE,
     horas_obligatorias INTEGER DEFAULT 480,
     estatus            TEXT DEFAULT 'Activo',
-    sexo               TEXT                   -- añadida vía ALTER TABLE (ver §4)
+    sexo               TEXT,                  -- añadida vía ALTER TABLE (ver §4)
+    alias              TEXT                   -- nombre formal limpio; añadida vía ALTER TABLE
 );
 ```
 
@@ -46,6 +47,7 @@ CREATE TABLE IF NOT EXISTS prestadores (
 | `horas_obligatorias` | INTEGER DEFAULT 480 | Meta del periodo. |
 | `estatus` | TEXT DEFAULT 'Activo' | Reservado para futuro (no se lee actualmente). |
 | `sexo` | TEXT NULL | Migración tardía. `'Masculino'` / `'Femenino'` o NULL. |
+| `alias` | TEXT NULL | Nombre formal/limpio para reportes y firmas. Si es NULL/vacío, la capa de lectura hace **fallback al `nombre`** del checador. |
 
 ### 2.2. Tabla `registros`
 
@@ -73,7 +75,7 @@ CREATE TABLE IF NOT EXISTS registros (
 | `fecha` | DATE NOT NULL | `YYYY-MM-DD`. Junto con `id_checador` forma la clave única de negocio. |
 | `hora_entrada` / `hora_salida` | TEXT NULL | `HH:MM` (24h). NULL para Falta/Justificante/Edición manual sin horas. |
 | `horas_trabajadas` | REAL DEFAULT 0.0 | Horas **redondeadas** ([`BUSINESS_LOGIC.md §1`](BUSINESS_LOGIC.md#1-redondeo-de-horas)). |
-| `requiere_revision` | BOOLEAN DEFAULT 0 | Reservado. Actualmente no se escribe ni se lee desde la app. |
+| `requiere_revision` | BOOLEAN DEFAULT 0 | **Bandera de anomalía del checador.** La pone en `1` `procesar_reporte_asistencia` cuando una celda no es un par exacto (Entrada/Salida). La UI de Expedientes pinta esos días en ámbar; al corregir el día manualmente vuelve a `0` (ver `BUSINESS_LOGIC.md`). |
 | `estatus` | TEXT DEFAULT 'Asistencia' | `Asistencia` / `Falta` / `Justificante` / `Saldo Inicial`. Ver [`BUSINESS_LOGIC.md §4`](BUSINESS_LOGIC.md#4-estatus-de-registro-y-semántica). |
 
 #### Restricción de unicidad
@@ -133,7 +135,7 @@ prestadores                    registros
 `inicializar_bd()` se ejecuta en cada arranque y aplica:
 
 1. **`CREATE TABLE IF NOT EXISTS`** para las tres tablas → seguro para BDs nuevas y existentes.
-2. **`ALTER TABLE prestadores ADD COLUMN sexo TEXT`** envuelto en `try/except sqlite3.OperationalError` — permite añadir la columna sin romper si ya existe.
+2. **`ALTER TABLE prestadores ADD COLUMN sexo TEXT`** y **`ALTER TABLE prestadores ADD COLUMN alias TEXT`**, cada uno envuelto en `try/except sqlite3.OperationalError` — permite añadir columnas sin romper si ya existen.
 3. **`CREATE INDEX IF NOT EXISTS`** para tres índices de rendimiento (ver §5).
 
 > **Para añadir una columna nueva**, replicar el patrón del paso 2 (ALTER + try/except). No usar herramientas de migración externas como Alembic — el proyecto deliberadamente las evita por simplicidad.

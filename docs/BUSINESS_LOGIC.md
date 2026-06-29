@@ -244,3 +244,37 @@ Cuando se recibe un departamento nuevo no listado, se mantiene tal cual (en `MAY
 | Expiración | Modificar `28800` a `5` (5 s) temporalmente, esperar y llamar `verificar-sesion` → 401. |
 | Normalización deptos | Insertar manualmente un prestador con `departamento="Logística"` → reiniciar el servidor → consultar BD: debe leer `LOGISTICA`. |
 | Saldo inicial | Migrar un archivo histórico con `25` en (Enero, día 1) → consultar BD: debe haber una fila en `2025-12-31` con `estatus='Saldo Inicial'` y `horas_trabajadas=25`. |
+
+---
+
+## 10. Alias de prestadores (nombre formal)
+
+El reloj checador entrega nombres recortados o sin espacios (p. ej. `ULRIKHEMICHELLE HERNANDEZLAZARO`). La columna `prestadores.alias` guarda un **nombre formal limpio** para mostrar y para los documentos oficiales.
+
+- **Fallback automático:** la capa de lectura usa el alias y, si es `NULL`/vacío, cae al `nombre` del checador.
+  - `crud.listar_prestadores` devuelve `alias` (crudo) **y** `nombre` (crudo) → el Directorio prioriza `alias` en la tabla y muestra el nombre del checador como subtítulo si difieren. El modal edita el alias real.
+  - `crud.obtener_datos_seguimiento` devuelve `nombre` = **display** (alias→fallback nombre) y conserva `nombre_checador`. Por eso **Expedientes, la hoja de firmas y los PDFs imprimen el alias** sin lógica extra en cada vista.
+- **Escritura:** `registrar_prestador` y `actualizar_prestador` aceptan `alias` (opcional). El endpoint y el modal lo envían; vacío ⇒ se guarda `NULL`/'' y aplica el fallback.
+
+## 11. Anomalías del checador (`requiere_revision`)
+
+**Ubicación:** `app/services/procesador_excel.py::_parsear_celda`.
+
+Una celda **válida** es exactamente un par `Entrada 
+ Salida` con `salida > entrada`. Cualquier otra cosa **con datos** se ingiere igual pero con la bandera `requiere_revision = 1`:
+
+| Caso de celda | Resultado |
+|---|---|
+| `10:42 
+ 14:54` (par válido) | `requiere_revision=0`, horas calculadas y redondeadas. |
+| vacía / `nan` | No se genera registro. |
+| `13:54` (1 sola checada) | `requiere_revision=1`, `entrada=13:54`, `salida=NULL`, `horas=0`. |
+| `10:56 
+ 12:41 
+ 14:51` (3+) | `requiere_revision=1`, rescata `entrada=primera`, `salida=última`, `horas=0`. |
+| `14:00 
+ 09:00` (salida ≤ entrada) o ilegible | `requiere_revision=1`, rescata lo que se pueda, `horas=0`. |
+
+**Persistencia:** `crud.guardar_registros_diarios` escribe la bandera (`INSERT OR REPLACE` incluye `requiere_revision`).
+
+**Flujo de resolución (UI):** Expedientes pinta los días con `requiere_revision=1` en **ámbar (`⚠ REVISAR`)** y un contador `⚠ N por revisar` en la tarjeta. Al hacer clic se abre el modal existente **pre-cargado en modo Rango** con las checadas rescatadas (`entrada`/`salida`) para que el admin confirme/corrija con la calculadora. Al guardar (`POST /api/actualizar-dia`), `crud.actualizar_estatus_dia` reescribe el registro con `requiere_revision = 0`, devolviendo el día a su estado normal.

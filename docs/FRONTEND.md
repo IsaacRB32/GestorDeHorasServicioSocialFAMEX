@@ -124,6 +124,11 @@ Estructura compartida: todas (menos `login`) renderizan el menú lateral con una
   - `Falta` → rojo.
   - `Justificante` → amarillo/ámbar.
   - Sin registro → gris claro.
+  - **`requiere_revision` (anomalía del checador) → ámbar `⚠ REVISAR`** (alerta visual distintiva).
+
+> **Colores por departamento:** la cabecera de cada tarjeta usa `window.badgeDepto()` del núcleo compartido (`famex-ui.js`), por lo que mantiene la **misma identidad cromática** que el Directorio y la Analítica.
+>
+> **Fecha dinámica:** el calendario se inicializa con el **mes/año actual del sistema** (`new Date()`), ya no fijo en mayo 2026. Las flechas `‹ ›` siguen navegando sobre la caché sin re-fetch.
 
 ### 5.2. Modal de edición de día
 
@@ -134,6 +139,8 @@ Al hacer clic en una celda del calendario se abre `#modalEdicion`. Tabs:
 - **`✓ Asistencia`** → input numérico para horas (calculadora manual con botones rápidos `+0.5`, `+1`, `+2`).
 
 Al confirmar: `POST /api/actualizar-dia` con el body correspondiente. Luego se cierra modal y se re-renderiza la tarjeta.
+
+**Resolución de anomalías:** si el día tenía `requiere_revision=1`, `abrirEdicion` abre el modal directamente en la pestaña **Agregar Horas → Rango**, pre-cargando `Hora de Inicio`/`Hora de Fin` con las checadas rescatadas. Al guardar, el backend limpia la bandera (`requiere_revision=0`) y el día deja de pintarse en ámbar.
 
 ### 5.3. Datos consumidos
 

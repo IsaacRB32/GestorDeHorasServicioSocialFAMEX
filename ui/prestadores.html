@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <title>Directorio de Prestadores</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="js/famex-ui.js?v=6"></script>
-    <link href="css/style.css?v=6" rel="stylesheet">
+    <script src="js/famex-ui.js?v=7"></script>
+    <link href="css/style.css?v=7" rel="stylesheet">
 </head>
 <body class="flex h-screen bg-slate-50 overflow-hidden">
         <famex-sidebar class="w-64 flex-shrink-0"></famex-sidebar>
@@ -99,6 +99,13 @@
                     <input type="text" id="inputNombre" placeholder="Ej: MARÍA LÓPEZ GARCÍA"
                         class="border-2 border-gray-200 focus:border-blue-500 p-3 rounded-xl w-full font-bold text-gray-800 bg-gray-50 focus:outline-none focus:bg-white transition-colors uppercase">
                 </div>
+                <!-- Alias (nombre formal limpio para reportes y firmas) -->
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Alias / Nombre Formal <span class="text-gray-400 normal-case font-medium">(opcional)</span></label>
+                    <input type="text" id="inputAlias" placeholder="Ej: Ulrikhe Michelle Hernández Lázaro"
+                        class="border-2 border-gray-200 focus:border-blue-500 p-3 rounded-xl w-full font-bold text-gray-800 bg-gray-50 focus:outline-none focus:bg-white transition-colors">
+                    <p class="text-[11px] text-gray-400 mt-1">Si se deja vacío, se usa el nombre del checador.</p>
+                </div>
                 <!-- Sexo -->
                 <div>
                     <label class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Sexo</label>
@@ -178,7 +185,7 @@
         </div>
     </div>
 
-    <script src="js/prestadores.js?v=6"></script>
+    <script src="js/prestadores.js?v=7"></script>
 
 </body>
 </html>

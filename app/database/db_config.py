@@ -105,6 +105,12 @@ def inicializar_bd() -> None:
         except sqlite3.OperationalError:
             pass  # Ya existe
 
+        # Migración segura: columna 'alias' (nombre formal limpio; ver BUSINESS_LOGIC).
+        try:
+            cursor.execute("ALTER TABLE prestadores ADD COLUMN alias TEXT")
+        except sqlite3.OperationalError:
+            pass  # Ya existe
+
         # Índices de rendimiento.
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_registros_checador_fecha ON registros(id_checador, fecha)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_registros_estatus ON registros(estatus)')

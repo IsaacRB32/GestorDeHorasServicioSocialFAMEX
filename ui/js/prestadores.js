@@ -61,7 +61,10 @@ function renderTabla(datos) {
             <td class="py-3.5 px-6">
                 <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-slate-100 text-sm font-black text-slate-600 border border-slate-200 group-hover:bg-blue-100 group-hover:text-blue-700 transition">${p.id}</span>
             </td>
-            <td class="py-3.5 px-6 font-bold text-gray-800">${p.nombre}</td>
+            <td class="py-3.5 px-6">
+                <div class="font-bold text-gray-800">${p.alias || p.nombre}</div>
+                ${p.alias && p.alias !== p.nombre ? `<div class="text-[11px] text-gray-400 font-medium">${p.nombre}</div>` : ''}
+            </td>
             <td class="py-3.5 px-6">${badgeDepto(p.departamento)}</td>
             <td class="py-3.5 px-6 text-center text-sm">
                 ${p.sexo
@@ -116,6 +119,7 @@ function abrirModal(modo, datos) {
         document.getElementById('inputId').classList.add('opacity-50', 'cursor-not-allowed');
         document.getElementById('ayudaId').innerText   = 'El ID no se puede modificar';
         document.getElementById('inputNombre').value   = datos.nombre;
+        document.getElementById('inputAlias').value    = datos.alias || '';
         document.getElementById('inputSexo').value     = datos.sexo || '';
         document.getElementById('inputDepto').value    = datos.departamento;
         document.getElementById('inputFInicio').value  = datos.fecha_inicio;
@@ -129,6 +133,7 @@ function abrirModal(modo, datos) {
         document.getElementById('inputId').classList.remove('opacity-50', 'cursor-not-allowed');
         document.getElementById('ayudaId').innerText     = 'Número único del reloj checador físico';
         document.getElementById('inputNombre').value     = '';
+        document.getElementById('inputAlias').value      = '';
         document.getElementById('inputSexo').value       = '';
         document.getElementById('inputDepto').value      = '';
         document.getElementById('inputFInicio').value    = '2026-01-01';
@@ -150,6 +155,7 @@ function mostrarError(msg) {
 async function guardarPrestador() {
     const id     = parseInt(document.getElementById('inputId').value);
     const nombre = document.getElementById('inputNombre').value.trim().toUpperCase();
+    const alias  = document.getElementById('inputAlias').value.trim();
     const depto  = document.getElementById('inputDepto').value;
     const sexo   = document.getElementById('inputSexo').value;
     const fIni   = document.getElementById('inputFInicio').value;
@@ -164,6 +170,7 @@ async function guardarPrestador() {
     const payload = {
         id_checador: id,
         nombre: nombre,
+        alias: alias,
         departamento: depto,
         sexo: sexo,
         fecha_inicio: fIni,

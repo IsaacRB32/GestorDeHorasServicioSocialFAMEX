@@ -10,14 +10,14 @@ import sqlite3
 
 # ====================== ESCRITURA: PRESTADORES ======================
 def registrar_prestador(conn, id_checador, nombre, departamento,
-                        f_inicio, f_termino, horas_meta, sexo=None) -> bool:
+                        f_inicio, f_termino, horas_meta, sexo=None, alias=None) -> bool:
     """Alta de prestador. Retorna False si el id_checador ya existe."""
     try:
         conn.execute('''
             INSERT INTO prestadores
-                (id_checador, nombre, departamento, fecha_inicio, fecha_termino, horas_obligatorias, sexo)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (id_checador, nombre, departamento, f_inicio, f_termino, horas_meta, sexo))
+                (id_checador, nombre, departamento, fecha_inicio, fecha_termino, horas_obligatorias, sexo, alias)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (id_checador, nombre, departamento, f_inicio, f_termino, horas_meta, sexo, alias))
         conn.commit()
         return True
     except sqlite3.IntegrityError:
@@ -26,14 +26,14 @@ def registrar_prestador(conn, id_checador, nombre, departamento,
 
 
 def actualizar_prestador(conn, id_checador, nombre, departamento, sexo,
-                         f_inicio, f_termino, horas_meta) -> int:
+                         f_inicio, f_termino, horas_meta, alias=None) -> int:
     """Edita un prestador. Retorna nº de filas afectadas (0 = no encontrado)."""
     cur = conn.execute('''
         UPDATE prestadores
-           SET nombre = ?, departamento = ?, sexo = ?,
+           SET nombre = ?, departamento = ?, sexo = ?, alias = ?,
                fecha_inicio = ?, fecha_termino = ?, horas_obligatorias = ?
          WHERE id_checador = ?
-    ''', (nombre, departamento, sexo, f_inicio, f_termino, horas_meta, id_checador))
+    ''', (nombre, departamento, sexo, alias, f_inicio, f_termino, horas_meta, id_checador))
     conn.commit()
     return cur.rowcount
 
@@ -57,13 +57,14 @@ def guardar_registros_diarios(conn, lista_registros) -> int:
     if not lista_registros:
         return 0
     datos = [
-        (r['id_checador'], r['fecha'], r['entrada'], r['salida'], r['horas'])
+        (r['id_checador'], r['fecha'], r['entrada'], r['salida'], r['horas'],
+         r.get('requiere_revision', 0))
         for r in lista_registros
     ]
     conn.executemany('''
         INSERT OR REPLACE INTO registros
-            (id_checador, fecha, hora_entrada, hora_salida, horas_trabajadas)
-        VALUES (?, ?, ?, ?, ?)
+            (id_checador, fecha, hora_entrada, hora_salida, horas_trabajadas, requiere_revision)
+        VALUES (?, ?, ?, ?, ?, ?)
     ''', datos)
     conn.commit()
     return len(datos)
@@ -89,9 +90,10 @@ def guardar_registros_historicos(conn, lista_registros) -> int:
 
 def actualizar_estatus_dia(conn, id_checador, fecha, nuevas_horas, nuevo_estatus) -> bool:
     """Edición de un día desde el calendario. INSERT OR REPLACE (crea o sobreescribe)."""
+    # La corrección manual SIEMPRE limpia la bandera de revisión (requiere_revision = 0).
     conn.execute('''
-        INSERT OR REPLACE INTO registros (id_checador, fecha, horas_trabajadas, estatus)
-        VALUES (?, ?, ?, ?)
+        INSERT OR REPLACE INTO registros (id_checador, fecha, horas_trabajadas, estatus, requiere_revision)
+        VALUES (?, ?, ?, ?, 0)
     ''', (id_checador, fecha, nuevas_horas, nuevo_estatus))
     conn.commit()
     return True
@@ -113,7 +115,7 @@ def obtener_resumen_prestador(conn, id_checador) -> dict | None:
 def listar_prestadores(conn) -> list[dict]:
     """Todos los prestadores con metadatos (para prestadores.html)."""
     rows = conn.execute('''
-        SELECT id_checador, nombre, departamento, sexo,
+        SELECT id_checador, nombre, alias, departamento, sexo,
                fecha_inicio, fecha_termino, horas_obligatorias
           FROM prestadores
     ''').fetchall()
@@ -121,6 +123,7 @@ def listar_prestadores(conn) -> list[dict]:
         {
             "id": r["id_checador"],
             "nombre": r["nombre"],
+            "alias": r["alias"] or "",
             "departamento": r["departamento"],
             "sexo": r["sexo"] or "",
             "fecha_inicio": r["fecha_inicio"] or "2026-01-01",
@@ -142,8 +145,9 @@ def listar_departamentos(conn) -> list[str]:
 def obtener_datos_seguimiento(conn) -> list[dict]:
     """Todos los prestadores con su detalle de registros (single LEFT JOIN, sin N+1)."""
     filas = conn.execute('''
-        SELECT p.id_checador, p.nombre, p.departamento,
-               r.fecha, r.horas_trabajadas, r.estatus
+        SELECT p.id_checador, p.nombre, p.alias, p.departamento,
+               r.fecha, r.horas_trabajadas, r.estatus,
+               r.requiere_revision, r.hora_entrada, r.hora_salida
           FROM prestadores p
           LEFT JOIN registros r ON p.id_checador = r.id_checador
          ORDER BY p.id_checador, r.fecha
@@ -154,19 +158,31 @@ def obtener_datos_seguimiento(conn) -> list[dict]:
         pid = f["id_checador"]
         prestador = mapa.get(pid)
         if prestador is None:
+            # Fallback de nombre: se prioriza el alias formal; si es NULL/vacío
+            # se usa el nombre crudo del checador.
+            display = (f["alias"] or "").strip() or f["nombre"]
             prestador = mapa[pid] = {
-                "id": pid, "nombre": f["nombre"], "departamento": f["departamento"],
-                "horas_totales": 0.0, "faltas": 0, "justificantes": 0, "registros": [],
+                "id": pid, "nombre": display, "nombre_checador": f["nombre"],
+                "departamento": f["departamento"],
+                "horas_totales": 0.0, "faltas": 0, "justificantes": 0,
+                "revisiones": 0, "registros": [],
             }
         if f["fecha"] is not None:
             h = f["horas_trabajadas"] or 0.0
             est = f["estatus"] or "Asistencia"
+            rev = 1 if (f["requiere_revision"] or 0) else 0
             prestador["horas_totales"] += h
             if est == "Falta":
                 prestador["faltas"] += 1
             elif est == "Justificante":
                 prestador["justificantes"] += 1
-            prestador["registros"].append({"fecha": f["fecha"], "horas": h, "estatus": est})
+            if rev:
+                prestador["revisiones"] += 1
+            prestador["registros"].append({
+                "fecha": f["fecha"], "horas": h, "estatus": est,
+                "requiere_revision": rev,
+                "entrada": f["hora_entrada"], "salida": f["hora_salida"],
+            })
 
     resultado = list(mapa.values())
     for p in resultado:

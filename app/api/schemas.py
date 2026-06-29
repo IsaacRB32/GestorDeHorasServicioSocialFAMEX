@@ -25,6 +25,7 @@ class PrestadorInput(BaseModel):
     id_checador: int
     nombre: str
     departamento: str
+    alias: str | None = None
     sexo: str | None = None
     fecha_inicio: str = config.PERIODO_INICIO
     fecha_termino: str = config.PERIODO_TERMINO

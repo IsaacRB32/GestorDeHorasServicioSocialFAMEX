@@ -165,14 +165,17 @@ Endpoint usado por `seguimiento.html` (calendario) y como fallback en `index.htm
 [
   {
     "id": 1,
-    "nombre": "ALEXIA BERNAL",
+    "nombre": "Alexia Bernal",
+    "nombre_checador": "ALEXIA BERNAL",
     "departamento": "LOGISTICA",
     "horas_totales": 124.5,
     "faltas": 2,
     "justificantes": 1,
+    "revisiones": 1,
     "registros": [
-      { "fecha": "2026-05-12", "horas": 4.5, "estatus": "Asistencia" },
-      { "fecha": "2026-05-15", "horas": 0,   "estatus": "Falta" }
+      { "fecha": "2026-05-12", "horas": 4.5, "estatus": "Asistencia", "requiere_revision": 0, "entrada": "10:42", "salida": "14:54" },
+      { "fecha": "2026-05-15", "horas": 0,   "estatus": "Falta",      "requiere_revision": 0, "entrada": null,    "salida": null },
+      { "fecha": "2026-05-19", "horas": 0,   "estatus": "Asistencia", "requiere_revision": 1, "entrada": "10:56", "salida": "14:51" }
     ]
   }
 ]
@@ -221,6 +224,7 @@ Devuelve todos los prestadores con sus metadatos para `prestadores.html`.
   {
     "id": 1,
     "nombre": "ALEXIA BERNAL",
+    "alias": "Alexia Bernal",
     "departamento": "LOGISTICA",
     "sexo": "Femenino",
     "fecha_inicio": "2026-01-01",
@@ -245,6 +249,7 @@ Alta de un prestador.
 {
   "id_checador": 42,
   "nombre": "JUAN PEREZ",
+  "alias": "Juan Pérez",
   "departamento": "OPERACIONES",
   "sexo": "Masculino",
   "fecha_inicio": "2026-01-01",
