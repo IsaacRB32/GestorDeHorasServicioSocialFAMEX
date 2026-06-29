@@ -132,7 +132,12 @@
   class FamexSidebar extends HTMLElement {
     connectedCallback() {
       var activo = this.getAttribute('active') || ACTIVO_POR_ARCHIVO[ARCHIVO] || '';
-      this.className = 'no-print w-64 flex-shrink-0 flex flex-col bg-gradient-to-b from-ink-800 to-ink-900 text-white p-5 shadow-sidebar z-10';
+      // classList.add (no className=) para NO pisar las clases que el HTML
+      // pueda declarar en <famex-sidebar class="...">. Garantiza tamaño y
+      // estilo del sidebar de inmediato (sin CLS).
+      ['no-print','w-64','flex-shrink-0','flex','flex-col','bg-gradient-to-b',
+       'from-ink-800','to-ink-900','text-white','p-5','shadow-sidebar','z-10']
+        .forEach(function (c) { this.classList.add(c); }, this);
 
       var itemsHtml = NAV.map(function (item) {
         var esActivo = item.key === activo;

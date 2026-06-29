@@ -166,7 +166,7 @@ def verificar_token(token):
 ```
 
 - **Vida del token: 8 h** (`28800 s`).
-- Los tokens viven en RAM (`_sesiones_activas: dict[str, dict]`). **Al reiniciar el servidor todos los tokens se pierden** y el usuario debe re‑loguearse.
+- Los tokens viven en memoria pero se **persisten en `data/sesiones.json`** (carga al importar, guarda en login/logout/expiración). Por eso **sobreviven a reinicios del servidor** (incl. `uvicorn --reload`); ya no expulsan al usuario en cada recarga de código. Siguen expirando a las 8 h.
 
 ---
 

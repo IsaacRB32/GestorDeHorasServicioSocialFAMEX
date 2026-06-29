@@ -4,14 +4,13 @@
     <meta charset="UTF-8">
     <title>Directorio de Prestadores</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="js/famex-ui.js"></script>
-    <link href="css/style.css" rel="stylesheet">
+    <script src="js/famex-ui.js?v=6"></script>
+    <link href="css/style.css?v=6" rel="stylesheet">
 </head>
-<body class="bg-gray-100 font-sans">
-    <div class="flex h-screen">
-        <famex-sidebar></famex-sidebar>
+<body class="flex h-screen bg-slate-50 overflow-hidden">
+        <famex-sidebar class="w-64 flex-shrink-0"></famex-sidebar>
 
-        <main class="flex-1 p-8 overflow-y-auto">
+        <main class="flex-1 overflow-y-auto p-4 md:p-8">
             <!-- Header -->
             <div class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-gray-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 <div>
@@ -76,7 +75,6 @@
                 </div>
             </div>
         </main>
-    </div>
 
     <!-- MODAL CREAR / EDITAR -->
     <div id="modalPrestador" class="fixed inset-0 bg-slate-900 bg-opacity-60 hidden flex justify-center items-center z-50 backdrop-blur-sm">
@@ -180,7 +178,7 @@
         </div>
     </div>
 
-    <script src="js/prestadores.js"></script>
+    <script src="js/prestadores.js?v=6"></script>
 
 </body>
 </html>

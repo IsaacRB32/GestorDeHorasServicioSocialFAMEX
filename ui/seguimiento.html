@@ -4,14 +4,13 @@
     <meta charset="UTF-8">
     <title>Seguimiento de Prestadores</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="js/famex-ui.js"></script>
-    <link href="css/style.css" rel="stylesheet">
+    <script src="js/famex-ui.js?v=6"></script>
+    <link href="css/style.css?v=6" rel="stylesheet">
 </head>
-<body class="bg-gray-100 font-sans">
-    <div class="flex h-screen">
-        <famex-sidebar></famex-sidebar>
+<body class="flex h-screen bg-slate-50 overflow-hidden">
+        <famex-sidebar class="w-64 flex-shrink-0"></famex-sidebar>
 
-        <main class="flex-1 p-8 overflow-y-auto">
+        <main class="flex-1 overflow-y-auto p-4 md:p-8">
             <div class="bg-white p-5 rounded-xl shadow-sm mb-8 border border-gray-100 flex flex-col xl:flex-row justify-between items-center gap-4">
                 <div>
                     <h2 class="text-2xl font-bold text-gray-800">Seguimiento Meso-Mensual</h2>
@@ -40,7 +39,6 @@
             <div id="contenedorTarjetas" class="grid grid-cols-1 xl:grid-cols-2 gap-8">
             </div>
         </main>
-    </div>
 
     <div id="modalEdicion" class="fixed inset-0 bg-slate-900 bg-opacity-60 hidden flex justify-center items-center z-50 backdrop-blur-sm">
         <div class="bg-white rounded-2xl shadow-2xl p-6 w-[460px] max-w-[95vw]">
@@ -142,7 +140,7 @@
         </div>
     </div>
 
-    <script src="js/seguimiento.js"></script>
+    <script src="js/seguimiento.js?v=6"></script>
 
 </body>
 </html>

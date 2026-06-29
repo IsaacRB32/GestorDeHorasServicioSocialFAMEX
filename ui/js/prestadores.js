@@ -36,8 +36,8 @@ function aplicarFiltros() {
 
     const filtrados = listaPrestadores.filter(p => {
         const matchN = p.nombre.toLowerCase().includes(txt);
-        const matchD = depto === 'Todos' || p.departamento === depto;
-        const matchS = sexo === 'Todos' || p.sexo === sexo;
+        const matchD = !depto || depto === 'Todos' || p.departamento === depto;
+        const matchS = !sexo || sexo === 'Todos' || p.sexo === sexo;
         return matchN && matchD && matchS;
     });
 
@@ -244,5 +244,7 @@ async function poblarDepartamentos() {
     } catch(e) { console.error('Error cargando departamentos:', e); }
 }
 
-// ============ INIT ============
-poblarDepartamentos().then(() => cargarDirectorio());
+// ============ INIT (a prueba de ciclo de vida del DOM) ============
+function iniciarVista() { poblarDepartamentos().then(() => cargarDirectorio()); }
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciarVista);
+else iniciarVista();

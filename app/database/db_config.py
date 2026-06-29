@@ -14,7 +14,11 @@ DATA_DIR = config.DATA_DIR
 def obtener_conexion() -> sqlite3.Connection:
     """Crea una conexión SQLite con FKs activas, WAL y acceso por nombre."""
     os.makedirs(DATA_DIR, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    # check_same_thread=False: el threadpool de FastAPI/Starlette atiende cada
+    # request en un hilo distinto; sin esto SQLite lanza ProgrammingError. Es seguro
+    # porque cada request usa su propia conexión efímera (get_db) y no se comparten
+    # objetos sqlite entre hilos simultáneamente.
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     # Integridad referencial real (cascadas, FK enforcement).
     conn.execute("PRAGMA foreign_keys = ON")

@@ -124,7 +124,7 @@ function aplicarFiltros() {
 
     for (const t of tarjetas) {
         const matchN = t.dataset.nombre.includes(txt);
-        const matchD = depto === 'Todos' || t.dataset.depto === depto;
+        const matchD = !depto || depto === 'Todos' || t.dataset.depto === depto;
         t.style.display = (matchN && matchD) ? 'block' : 'none';
     }
 }
@@ -297,4 +297,6 @@ async function poblarDepartamentos() {
         deptos.forEach(d => { sel.innerHTML += `<option value="${d}">${d}</option>`; });
     } catch(e) {}
 }
-poblarDepartamentos().then(() => cargarSeguimiento(true));
+function iniciarVista() { poblarDepartamentos().then(() => cargarSeguimiento(true)); }
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciarVista);
+else iniciarVista();

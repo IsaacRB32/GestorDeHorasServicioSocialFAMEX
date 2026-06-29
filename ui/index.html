@@ -4,17 +4,16 @@
     <meta charset="UTF-8">
     <title>Control de Asistencias</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="js/famex-ui.js"></script>
-    <link href="css/style.css" rel="stylesheet">
+    <script src="js/famex-ui.js?v=6"></script>
+    <link href="css/style.css?v=6" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
-<body class="bg-gray-100 font-sans">
-    <div class="flex h-screen">
+<body class="flex h-screen bg-slate-50 overflow-hidden">
         <!-- Menú Lateral Unificado (Web Component) -->
-        <famex-sidebar></famex-sidebar>
+        <famex-sidebar class="w-64 flex-shrink-0"></famex-sidebar>
 
-        <main class="flex-1 p-10 overflow-y-auto">
+        <main class="flex-1 overflow-y-auto p-4 md:p-8">
             <h2 class="text-2xl font-bold text-gray-800 mb-6">Cargar Reporte de Asistencia</h2>
             
             <div class="bg-white p-6 rounded-xl shadow-md mb-8 border-l-4 border-blue-500">
@@ -38,7 +37,6 @@
             </div>
 
         </main>
-    </div>
-    <script src="js/app.js?v=4"></script>
+    <script src="js/app.js?v=6"></script>
 </body>
 </html> 

@@ -93,7 +93,7 @@ function filtrar() {
     const depto = document.getElementById('filtroDepto').value;
     return datosGlobales.filter(p => {
         const mN = p.nombre.toLowerCase().includes(txt);
-        const mD = depto === 'Todos' || p.departamento === depto;
+        const mD = !depto || depto === 'Todos' || p.departamento === depto;
         return mN && mD;
     });
 }
@@ -238,4 +238,6 @@ async function poblarDepartamentos() {
         deptos.forEach(d => { sel.innerHTML += `<option value="${d}">${d}</option>`; });
     } catch(e) {}
 }
-poblarDepartamentos().then(() => cargar());
+function iniciarVista() { poblarDepartamentos().then(() => cargar()); }
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciarVista);
+else iniciarVista();

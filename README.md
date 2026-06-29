@@ -192,4 +192,4 @@ Explicación detallada de cada capa en [`docs/ARCHITECTURE.md`](docs/ARCHITECTUR
 - ~~Endpoints concentrados en `main.py`~~ ✅ **Resuelto:** `main.py` ahora solo arma la app (lifespan + include_router + estáticos).
 - ~~La fecha hard-codeada `2026-05-{dd}` en `procesador_excel.py`~~ ✅ **Resuelto (Paso 4):** el mes/año se detectan dinámicamente del encabezado `Fecha: DD/MM/YYYY ~ ...` del checador (`_detectar_periodo`), con manejo de semanas que cruzan de mes (`_construir_fecha`); degrada a la fecha actual si no se encuentra.
 - No hay logs persistentes ni auditoría de cambios en `registros`.
-- Tokens de sesión en memoria → cualquier reinicio expulsa a todos los usuarios. La API aún no exige `Bearer` (se activará junto al wrapper `fetch` del frontend, Paso 3).
+- ~~Tokens de sesión en memoria → cualquier reinicio expulsa a todos~~ ✅ **Resuelto:** sesiones persistidas en `data/sesiones.json` (sobreviven reinicios). La API exige `Bearer` server-side y `apiFetch` lo inyecta.

@@ -1,10 +1,9 @@
-/* ui/css/style.css — estilos base y de impresión compartidos.
+/* ui/css/style.css — estilos base, layout estable y de impresión.
  * Tailwind se carga vía CDN (Play CDN); su configuración de tema vive en
- * ui/js/famex-ui.js. Aquí solo van reglas base globales y de impresión. */
+ * ui/js/famex-ui.js. Aquí van reglas base globales, la reserva de layout del
+ * sidebar (anti-CLS) y la impresión. */
 
-:root {
-  --famex-bg: #f1f5f9; /* slate-100 */
-}
+:root { --famex-bg: #f1f5f9; }        /* slate-100 */
 
 html { -webkit-text-size-adjust: 100%; }
 
@@ -19,10 +18,34 @@ body {
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-/* Cualquier elemento marcado .no-print se oculta al imprimir en TODAS las vistas
- * (el sidebar lo lleva por defecto). La hoja de firmas define reglas adicionales
- * en analitica.html. */
+/* ============================================================
+   RESERVA DE LAYOUT DEL SIDEBAR (anti Cumulative Layout Shift)
+   El Web Component <famex-sidebar> se "actualiza" (upgrade) cuando
+   famex-ui.js corre. Estas reglas, en una hoja BLOQUEANTE del <head>,
+   reservan su ancho y color desde el PRIMER pintado, de modo que cuando
+   el componente inyecta sus clases Tailwind no haya salto de layout.
+   16rem == w-64 ; #0f172a == ink-800 (tope del gradiente). ============ */
+famex-sidebar {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 16rem;
+  min-height: 100vh;
+  background-color: #0f172a;
+  color: #fff;
+}
+/* Antes del upgrade el componente está vacío: evita que parpadee contenido. */
+famex-sidebar:not(:defined) { visibility: hidden; }
+
+/* Área principal contigua al sidebar: ocupa el resto con min-width:0 para que
+   tablas/grids anchos no empujen el layout (estabilidad horizontal). */
+famex-sidebar + main { flex: 1 1 0%; min-width: 0; }
+
+/* ============================================================
+   IMPRESIÓN: oculta el sidebar y elementos .no-print en cualquier vista.
+   La hoja de firmas (analitica.html) define reglas adicionales. ========= */
 @media print {
-  .no-print { display: none !important; }
+  famex-sidebar, .no-print { display: none !important; }
   body { background: #fff !important; }
 }
