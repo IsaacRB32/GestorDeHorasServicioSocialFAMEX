@@ -141,7 +141,7 @@ GestorDeHorasServicioSocialFAMEX/
 │
 └── data/                         # Generado en runtime (no versionado)
     ├── asistencias.db            # BD SQLite
-    └── *.xlsx                    # Archivos subidos por el usuario (persistidos)
+    └── (sin *.xlsx)              # Carga EFÍMERA: los Excel se procesan en memoria y NO se archivan (ver BUSINESS_LOGIC.md §12)
 ```
 
 Explicación detallada de cada capa en [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).

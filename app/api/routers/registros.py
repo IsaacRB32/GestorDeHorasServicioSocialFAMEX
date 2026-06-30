@@ -1,10 +1,17 @@
 # app/api/routers/registros.py
-"""Ingesta de reportes (checador + histórico) y edición de días."""
-import os
-import shutil
+"""Ingesta de reportes (checador + histórico) y edición de días.
+
+CARGA EFÍMERA — el servidor NO archiva los .xlsx subidos:
+Estrategia A (En Memoria). El archivo se lee COMPLETO en RAM con `io.BytesIO`
+y se pasa así a pandas (`read_excel` acepta un buffer file-like), por lo que
+NUNCA se escribe un .xlsx en el disco del servidor. La única fuente de verdad a
+largo plazo es SQLite. Así el almacenamiento físico no se satura con el tiempo.
+Ver `docs/BUSINESS_LOGIC.md` (§ Carga efímera).
+"""
+import io
 import sqlite3
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from app.api.deps import get_db, require_auth
 from app.api.schemas import EdicionDia
@@ -16,20 +23,32 @@ from app.services.migrador_historico import procesar_seguimiento_historico
 router = APIRouter(tags=["registros"], dependencies=[Depends(require_auth)])
 
 
-def _guardar_subida(file: UploadFile) -> str:
-    """Persiste el archivo subido en data/, sanitizando el nombre (anti path-traversal)."""
-    os.makedirs(config.DATA_DIR, exist_ok=True)
-    nombre_seguro = os.path.basename(file.filename or "upload.xlsx")
-    ruta = os.path.join(config.DATA_DIR, nombre_seguro)
-    with open(ruta, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    return ruta
+async def _leer_excel_en_memoria(file: UploadFile) -> io.BytesIO:
+    """Lee el .xlsx subido COMPLETO en memoria y lo devuelve como buffer.
+
+    No se persiste nada en disco; pandas.read_excel consume este buffer directo.
+    """
+    contenido = await file.read()
+    if not contenido:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El archivo está vacío o no se pudo leer.",
+        )
+    return io.BytesIO(contenido)
 
 
 @router.post("/upload-reporte")
 async def upload_reporte(file: UploadFile = File(...), db: sqlite3.Connection = Depends(get_db)):
-    ruta = _guardar_subida(file)
-    datos = procesar_reporte_asistencia(ruta)
+    buffer = await _leer_excel_en_memoria(file)
+    try:
+        datos = procesar_reporte_asistencia(buffer)  # buffer en memoria, sin tocar disco
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No se pudo procesar el Excel del checador: {e}",
+        )
+    finally:
+        buffer.close()  # libera la memoria del buffer inmediatamente
 
     # 1. Alta automática de prestadores nuevos del Excel.
     for p in datos["prestadores"]:
@@ -60,8 +79,16 @@ async def upload_reporte(file: UploadFile = File(...), db: sqlite3.Connection = 
 
 @router.post("/migrar-historico")
 async def migrar_historico(file: UploadFile = File(...), db: sqlite3.Connection = Depends(get_db)):
-    ruta = _guardar_subida(file)
-    datos = procesar_seguimiento_historico(ruta)
+    buffer = await _leer_excel_en_memoria(file)
+    try:
+        datos = procesar_seguimiento_historico(buffer)  # buffer en memoria, sin tocar disco
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No se pudo procesar el archivo histórico: {e}",
+        )
+    finally:
+        buffer.close()
 
     registrados = 0
     for p in datos["prestadores"]:

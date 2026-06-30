@@ -278,3 +278,32 @@ Una celda **válida** es exactamente un par `Entrada
 **Persistencia:** `crud.guardar_registros_diarios` escribe la bandera (`INSERT OR REPLACE` incluye `requiere_revision`).
 
 **Flujo de resolución (UI):** Expedientes pinta los días con `requiere_revision=1` en **ámbar (`⚠ REVISAR`)** y un contador `⚠ N por revisar` en la tarjeta. Al hacer clic se abre el modal existente **pre-cargado en modo Rango** con las checadas rescatadas (`entrada`/`salida`) para que el admin confirme/corrija con la calculadora. Al guardar (`POST /api/actualizar-dia`), `crud.actualizar_estatus_dia` reescribe el registro con `requiere_revision = 0`, devolviendo el día a su estado normal.
+
+---
+
+## 12. Carga efímera de Excel (sin archivero en disco)
+
+**Ubicación:** `app/api/routers/registros.py`.
+
+Los `.xlsx` subidos (reporte semanal del checador y archivo histórico) **NO se
+persisten en el servidor**. Regla de negocio: el sistema de archivos no es un
+archivero; la única fuente de verdad a largo plazo es SQLite.
+
+**Estrategia A — En Memoria (la implementada):**
+
+1. `_leer_excel_en_memoria(file)` hace `await file.read()` y envuelve los bytes
+   en un `io.BytesIO` (buffer en RAM). Si el archivo viene vacío → `400`.
+2. Ese buffer se pasa **directamente** a `pandas.read_excel(...)` dentro de
+   `procesar_reporte_asistencia` / `procesar_seguimiento_historico` (pandas
+   acepta un objeto file-like, no requiere ruta física).
+3. El buffer se cierra en un bloque `finally` (`buffer.close()`) tras parsear,
+   liberando la memoria de inmediato.
+
+Resultado: en ningún momento se ejecuta `open(ruta, "wb")` ni se crea un `.xlsx`
+en `data/`. **El almacenamiento físico ya no crece** con cada carga. Errores de
+parseo devuelven `400` (antes provocaban `500` y, peor, dejaban el archivo en
+disco).
+
+> Los `.xlsx` que pudieran existir en `data/` de versiones anteriores son
+> residuales y pueden borrarse con seguridad: toda la información ya vive en
+> `data/asistencias.db`.
