@@ -50,7 +50,7 @@ function formatRangoSemana(lunes) {
 
 function cambiarSemana(dir) {
     lunesActivo.setDate(lunesActivo.getDate() + dir * 7);
-    renderizar();
+    cargar(); // re-fetch: horas_semana/acumulado dependen de la semana
 }
 
 // ===== Selector rápido de SEMANA (input type=week, ISO 8601) =====
@@ -169,7 +169,7 @@ function renderPopoverSemana() {
 function saltarASemana(y, w) {
     lunesActivo = lunesDeSemanaISO(y, w);
     _cerrarSelectorSemana();
-    renderizar();
+    cargar(); // re-fetch para la nueva semana
 }
 
 // redondearHoras() es global (ui/js/famex-ui.js → window.redondearHoras).
@@ -197,10 +197,11 @@ function horasSemana(prestador, fechas) {
     }, 0);
 }
 
-// ============ CARGA ============
+// ============ CARGA (re-fetch por semana: trae horas_semana + acumulado real) ============
 async function cargar() {
+    const semana = fechasSemana(lunesActivo);
     try {
-        const res = await apiFetch('/api/seguimiento-datos');
+        const res = await apiFetch(`/api/registro-firmas?fecha_inicio=${semana[0]}&fecha_fin=${semana[4]}`);
         datosGlobales = await res.json();
     } catch(e) { datosGlobales = []; }
     renderizar();
@@ -251,8 +252,8 @@ function renderCards(datos, semana) {
     let html = '';
     for (const [depto, prestadores] of Object.entries(grupos)) {
         prestadores.forEach(p => {
-            const hs = horasSemana(p, semana);
-            const fs = contarFaltasSemana(p, semana);
+            const hs = p.horas_semana;      // horas SOLO de esta semana
+            const fs = p.faltas;            // faltas de esta semana
             const badgeCls = DEPTO_BADGE[depto] || DEPTO_BADGE['General'];
 
             let diasHtml = '';
@@ -278,7 +279,7 @@ function renderCards(datos, semana) {
                         </div>
                     </div>
                     <div class="text-right">
-                        <div class="text-xl font-black text-gray-800">${p.horas_totales}<span class="text-xs font-medium text-gray-400 ml-0.5">h</span></div>
+                        <div class="text-xl font-black text-gray-800">${p.horas_acumuladas}<span class="text-xs font-medium text-gray-400 ml-0.5">h</span></div>
                         <span class="text-[10px] font-bold text-gray-400 uppercase">Acumulado</span>
                     </div>
                 </div>
@@ -320,10 +321,8 @@ function renderPrint(datos, semana) {
 
     let html = '';
     for (const [depto, prestadores] of Object.entries(grupos)) {
-        html += `<tr class="depto-row"><td colspan="10">${depto}</td></tr>`;
+        html += `<tr class="depto-row"><td colspan="11">${depto}</td></tr>`;
         prestadores.forEach(p => {
-            const hs = horasSemana(p, semana);
-            const faltasSem = contarFaltasSemana(p, semana);
             html += `<tr>
                 <td>${p.id}</td>
                 <td class="txt-left" style="white-space:nowrap">${p.nombre}</td>`;
@@ -336,7 +335,8 @@ function renderPrint(datos, semana) {
                 else txt = '';
                 html += `<td>${txt}</td>`;
             });
-            html += `<td><b>${p.horas_totales}</b></td>
+            html += `<td><b>${p.horas_semana}</b></td>
+                     <td><b>${p.horas_acumuladas}</b></td>
                      <td>${p.faltas}</td>
                      <td class="firma-col"></td></tr>`;
         });

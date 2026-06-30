@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <title>Registro Semanal - FAMEX</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="js/famex-ui.js?v=13"></script>
-    <link href="css/style.css?v=13" rel="stylesheet">
+    <script src="js/famex-ui.js?v=14"></script>
+    <link href="css/style.css?v=14" rel="stylesheet">
     <style>
         @media print {
             @page { size: letter portrait; margin: 10mm 10mm; }
@@ -58,7 +58,8 @@
                 border-bottom: 1.5pt solid #333;
                 padding: 1.5px 2px;
             }
-            #printTable .firma-col { width: 35mm; }
+            #printTable .firma-col { width: 30mm; }
+            #printTable td, #printTable th { white-space: nowrap; }
         }
     </style>
 </head>
@@ -135,7 +136,8 @@
                         <th>M</th>
                         <th>J</th>
                         <th>V</th>
-                        <th>Horas</th>
+                        <th>Hrs Sem.</th>
+                        <th>Acum.</th>
                         <th>Faltas</th>
                         <th class="firma-col">Firma de conformidad</th>
                     </tr>
@@ -144,7 +146,7 @@
             </table>
         </main>
 
-    <script src="js/analitica.js?v=13"></script>
+    <script src="js/analitica.js?v=14"></script>
 
 </body>
 </html>

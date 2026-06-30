@@ -26,3 +26,15 @@ def dashboard(id_prestador: int, db: sqlite3.Connection = Depends(get_db)):
 @router.get("/seguimiento-datos")
 def seguimiento_datos(db: sqlite3.Connection = Depends(get_db)):
     return crud.obtener_datos_seguimiento(db)
+
+
+@router.get("/registro-firmas")
+def registro_firmas(fecha_inicio: str, fecha_fin: str,
+                    db: sqlite3.Connection = Depends(get_db)):
+    """Datos de la hoja de firmas para la semana [fecha_inicio, fecha_fin].
+
+    Incluye horas_semana (solo esa semana) y horas_acumuladas (<= fecha_fin),
+    para que un reporte de una semana pasada muestre el acumulado correcto a esa
+    fecha y no el total absoluto de hoy.
+    """
+    return crud.obtener_registro_semanal(db, fecha_inicio, fecha_fin)

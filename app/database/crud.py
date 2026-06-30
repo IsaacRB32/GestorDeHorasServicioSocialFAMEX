@@ -191,6 +191,67 @@ def obtener_datos_seguimiento(conn) -> list[dict]:
     return resultado
 
 
+def obtener_registro_semanal(conn, fecha_inicio, fecha_fin) -> list[dict]:
+    """Registro semanal de firmas con ACUMULADO HISTORICO (time-travel).
+
+    Por cada prestador devuelve:
+      - horas_semana     = SUM(horas_trabajadas) con fecha BETWEEN inicio AND fin.
+      - horas_acumuladas = SUM(horas_trabajadas) con fecha <= fin (acumulado al
+        CIERRE de esa semana; ese '<= fecha_fin' es lo que hace el viaje en el tiempo).
+      - faltas           = nº de 'Falta' dentro de la semana.
+      - registros        = detalle de la semana (celdas Lun..Vie).
+    Las fechas son TEXT ISO 'YYYY-MM-DD', por lo que BETWEEN/<= comparan
+    lexicográficamente de forma correcta. Una sola pasada agregada (sin N+1).
+    """
+    prestadores = conn.execute('''
+        SELECT id_checador, nombre, alias, departamento, horas_obligatorias
+          FROM prestadores
+    ''').fetchall()
+
+    agg = conn.execute('''
+        SELECT id_checador,
+               COALESCE(SUM(CASE WHEN fecha BETWEEN ? AND ? THEN horas_trabajadas ELSE 0 END), 0) AS horas_semana,
+               COALESCE(SUM(CASE WHEN fecha <= ? THEN horas_trabajadas ELSE 0 END), 0) AS horas_acumuladas,
+               SUM(CASE WHEN fecha BETWEEN ? AND ? AND estatus = 'Falta' THEN 1 ELSE 0 END) AS faltas
+          FROM registros
+         GROUP BY id_checador
+    ''', (fecha_inicio, fecha_fin, fecha_fin, fecha_inicio, fecha_fin)).fetchall()
+    agg_map = {r["id_checador"]: r for r in agg}
+
+    det = conn.execute('''
+        SELECT id_checador, fecha, horas_trabajadas, estatus, requiere_revision
+          FROM registros
+         WHERE fecha BETWEEN ? AND ?
+         ORDER BY id_checador, fecha
+    ''', (fecha_inicio, fecha_fin)).fetchall()
+    det_map: dict = {}
+    for d in det:
+        det_map.setdefault(d["id_checador"], []).append({
+            "fecha": d["fecha"],
+            "horas": d["horas_trabajadas"] or 0.0,
+            "estatus": d["estatus"] or "Asistencia",
+            "requiere_revision": 1 if (d["requiere_revision"] or 0) else 0,
+        })
+
+    resultado = []
+    for p in prestadores:
+        pid = p["id_checador"]
+        a = agg_map.get(pid)
+        display = (p["alias"] or "").strip() or p["nombre"]
+        resultado.append({
+            "id": pid,
+            "nombre": display,
+            "nombre_checador": p["nombre"],
+            "departamento": p["departamento"],
+            "horas_obligatorias": p["horas_obligatorias"] or 480,
+            "horas_semana": round(a["horas_semana"], 2) if a else 0.0,
+            "horas_acumuladas": round(a["horas_acumuladas"], 2) if a else 0.0,
+            "faltas": (a["faltas"] or 0) if a else 0,
+            "registros": det_map.get(pid, []),
+        })
+    return resultado
+
+
 def obtener_analitica(conn) -> dict:
     """Agregados globales para analitica.html (horas por depto + conteo por estatus)."""
     depto_rows = conn.execute('''
