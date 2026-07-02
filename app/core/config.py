@@ -5,13 +5,35 @@ Todos los parámetros sensibles o desplegables admiten override por variable
 de entorno, manteniendo defaults seguros para el uso local mono-usuario.
 """
 import os
+import sys
 import hashlib
 
-# --- Rutas del proyecto (resueltas dinámicamente) ---
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+# --- Rutas del proyecto (compatibles con PyInstaller / .exe) ---
+# En modo CONGELADO (ejecutable PyInstaller):
+#   * Los recursos de SOLO LECTURA (frontend en ui/) se extraen al temporal
+#     sys._MEIPASS, así que UI_DIR apunta ahí.
+#   * Los datos ESCRIBIBLES (BD SQLite, sesiones, respaldos) deben vivir JUNTO
+#     al .exe para PERSISTIR entre ejecuciones; nunca dentro de _MEIPASS (que se
+#     borra al cerrar). Se puede forzar otra ruta con la env FAMEX_DATA_DIR.
+# En modo DESARROLLO se conserva el comportamiento original (relativo al repo).
+_FROZEN = getattr(sys, "frozen", False)
+
+if _FROZEN:
+    _BUNDLE_DIR = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(sys.executable)))
+    _APP_DIR = os.path.dirname(os.path.abspath(sys.executable))
+    BASE_DIR = _BUNDLE_DIR
+    UI_DIR = os.path.join(_BUNDLE_DIR, "ui")
+    DATA_DIR = os.getenv("FAMEX_DATA_DIR", os.path.join(_APP_DIR, "data"))
+    # BD semilla opcional empaquetada dentro del bundle (solo lectura); el
+    # lanzador la copia a DATA_DIR en el primer arranque si no existe una.
+    BUNDLED_DATA_DIR = os.path.join(_BUNDLE_DIR, "data")
+else:
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    UI_DIR = os.path.join(BASE_DIR, "ui")
+    DATA_DIR = os.getenv("FAMEX_DATA_DIR", os.path.join(BASE_DIR, "data"))
+    BUNDLED_DATA_DIR = DATA_DIR
+
 DB_PATH = os.path.join(DATA_DIR, "asistencias.db")
-UI_DIR = os.path.join(BASE_DIR, "ui")
 
 # --- Credenciales de administrador ---
 # En producción, exportar FAMEX_ADMIN_HASH para no depender del default embebido:

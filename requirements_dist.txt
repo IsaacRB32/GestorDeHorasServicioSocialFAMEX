@@ -1,0 +1,10 @@
+# ==========================================================================
+# FAMEX Control - Dependencias de DISTRIBUCION (produccion / empaquetado .exe)
+# Estrictamente lo minimo para ejecutar el sistema. Sin librerias de desarrollo.
+# Instalacion:  pip install -r requirements_dist.txt
+# ==========================================================================
+fastapi==0.111.0          # API REST + servidor de estaticos
+uvicorn==0.29.0           # Servidor ASGI (arranque programatico desde lanzador.py)
+pandas==2.2.2             # Parsing de los Excel (checador e historico)
+openpyxl==3.1.2           # Engine de lectura .xlsx usado por pandas
+python-multipart==0.0.9   # Requerido por FastAPI para recibir archivos (UploadFile)

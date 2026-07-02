@@ -11,13 +11,14 @@ El sistema es una **aplicación monolítica local** que corre como un único pro
 1. **API REST** bajo el prefijo `/api/*`.
 2. **Servidor de estáticos** bajo el prefijo `/ui/*`, sirviendo directamente el directorio `ui/`.
 
-No hay separación física entre cliente y servidor, ni proxy reverso, ni CDN: todo se sirve desde el mismo `uvicorn` en el mismo host.
+No hay separación física entre cliente y servidor, ni proxy reverso, **ni CDN**: todo —incluidas las librerías de terceros (Tailwind, jsPDF)— se sirve desde el mismo `uvicorn` en el mismo host. Esto hace al sistema **Offline-First**: funciona íntegramente sin conexión a internet, condición necesaria para empaquetarlo como ejecutable de escritorio (ver §4.7).
 
 ```
 ┌──────────────────────────────────────────────────────┐
 │                  Navegador (cliente)                 │
 │   login.html · index.html · prestadores.html · …     │
-│   Tailwind CDN · jsPDF CDN · ui/js/app.js            │
+│   ui/vendor/* (Tailwind, jsPDF) · ui/js/app.js        │
+│   (todo LOCAL — sin peticiones a internet)            │
 └────────────────────────┬─────────────────────────────┘
                          │ HTTP (puerto 8000)
                          ▼
@@ -90,17 +91,23 @@ ui/
 ├── js/
 │   ├── famex-ui.js    # NÚCLEO compartido: config Tailwind, apiFetch, guardia auth,
 │   │                  #   redondearHoras, badgeDepto, modales famexAlert/Confirm,
-│   │                  #   footer de créditos y Web Component <famex-sidebar>
+│   │                  #   modal "Acerca del Sistema" (famexAbout) y Web Component <famex-sidebar>
 │   ├── app.js         # Dashboard: upload, tabla de estado, PDF semanal, respaldos
 │   ├── prestadores.js # Vista Directorio (CRUD + alias)
 │   ├── seguimiento.js # Vista Expedientes (calendario + selector mes/año)
-│   ├── analitica.js   # Hoja de firmas (semana + acumulado + selector de semana)
-│   └── chart.min.js   # Chart.js offline (dependencia opcional)
+│   └── analitica.js   # Hoja de firmas (semana + acumulado + selector de semana)
+├── vendor/            # LIBRERÍAS LOCALES (Offline-First, sin CDNs) — ver §4.7
+│   ├── tailwindcss.js                     # Tailwind CSS (Play CDN alojado localmente)
+│   ├── jspdf.umd.min.js                   # jsPDF 2.5.1
+│   ├── jspdf.plugin.autotable.min.js      # jsPDF-AutoTable 3.8.2
+│   ├── descargar_dependencias.py          # Repuebla el vendor (ejecutar 1 vez con internet)
+│   ├── descargar.bat                      # Wrapper Windows del descargador
+│   └── LEEME.md                           # Instrucciones del vendor
 ├── css/style.css      # CSS base + reserva de layout del sidebar (anti-CLS) + print
 └── assets/            # Imágenes
 ```
 
-Cada HTML importa Tailwind por CDN y, justo después, el **núcleo compartido `ui/js/famex-ui.js`** (tema, `apiFetch` con `Bearer`, guardia de auth, `redondearHoras`, modales, `<famex-sidebar>` y footer de créditos). La lógica específica de cada vista vive en su **módulo externo** propio (`app.js`, `prestadores.js`, `seguimiento.js`, `analitica.js`) — ya no hay scripts inline. El menú lateral se renderiza con una sola etiqueta `<famex-sidebar>`.
+Cada HTML importa Tailwind **desde `ui/vendor/tailwindcss.js` (local, sin CDN)** y, justo después, el **núcleo compartido `ui/js/famex-ui.js`** (tema, `apiFetch` con `Bearer`, guardia de auth, `redondearHoras`, modales, modal "Acerca del Sistema" y `<famex-sidebar>`). La lógica específica de cada vista vive en su **módulo externo** propio (`app.js`, `prestadores.js`, `seguimiento.js`, `analitica.js`) — ya no hay scripts inline. El menú lateral se renderiza con una sola etiqueta `<famex-sidebar>`. Ninguna vista realiza peticiones a servidores externos (ver §4.7).
 
 Detalle de cada página y sus flujos en [`FRONTEND.md`](FRONTEND.md).
 
@@ -179,7 +186,7 @@ respuesta {prestadores_nuevos, registros_insertados}
 **Por qué:** la aplicación corre en una sola máquina, no hay concurrencia significativa (un coordinador), y el respaldo es trivial (copiar `data/asistencias.db`). No requiere instalar ni administrar un servidor.
 
 ### 4.2. Frontend sin framework ni bundler
-**Por qué:** simplifica el despliegue (no hay paso de build), permite editar HTML directamente, y reduce la curva de aprendizaje para el coordinador si tiene que tocar la UI. Tailwind y jsPDF se cargan por CDN — el sistema *requiere internet* para usar la UI completa.
+**Por qué:** simplifica el despliegue (no hay paso de build), permite editar HTML directamente, y reduce la curva de aprendizaje para el coordinador si tiene que tocar la UI. Tailwind y jsPDF se cargan **localmente desde `ui/vendor/`** (no por CDN), de modo que la UI funciona íntegramente **sin internet** — ver §4.7.
 
 ### 4.3. Autenticación en memoria
 **Por qué:** los tokens se almacenan en `_sesiones_activas: dict` dentro del proceso. Adecuado para un despliegue mono‑usuario local. **Trade‑off:** al reiniciar el servidor todos los tokens se invalidan y el usuario debe re‑loguearse. Ver detalle en [`BUSINESS_LOGIC.md`](BUSINESS_LOGIC.md#5-autenticación).
@@ -196,9 +203,30 @@ El bootstrap de la BD ya **no** corre a nivel de import. `main.py` define un `li
 **Implicación:** cada `uvicorn --reload` reejecuta el pipeline; todas las operaciones son idempotentes y seguras.
 
 ### 4.6. Replicación cliente/servidor del algoritmo de redondeo
-La función `redondear_horas` existe **dos veces**: una en `procesador_excel.py` (Python) y otra en `ui/js/app.js` (JS). Ambas implementan exactamente el mismo algoritmo. La duplicación es deliberada: permite que el PDF muestre el redondeo coherente con la BD sin requerir una llamada extra al servidor.
+La función `redondear_horas` existe **dos veces**: una en `procesador_excel.py` (Python) y otra en `ui/js/famex-ui.js` (`window.redondearHoras`, JS). Ambas implementan exactamente el mismo algoritmo. La duplicación es deliberada: permite que el PDF muestre el redondeo coherente con la BD sin requerir una llamada extra al servidor.
 
 > **Cuidado:** si se modifica el algoritmo en uno de los dos lados, **debe** actualizarse en el otro. Ver [`BUSINESS_LOGIC.md`](BUSINESS_LOGIC.md#1-redondeo-de-horas).
+
+### 4.7. Arquitectura Offline-First (dependencias locales, sin CDNs)
+
+**Decisión:** todos los recursos estáticos de terceros se **alojan localmente** en `ui/vendor/` y se sirven desde el propio backend; el frontend **no** contacta ningún servidor externo.
+
+**Por qué.** El sistema se distribuye como **ejecutable de escritorio (`.exe`)** y opera en contextos donde la conectividad no está garantizada: equipos **_air-gapped_** (aislados por política de seguridad), casetas/áreas de la feria sin WiFi estable, o simples cortes de red. Una herramienta de control de horas de servicio social es **crítica en el momento de uso**; no puede depender de que un CDN esté disponible. Con la arquitectura anterior (Tailwind y jsPDF por CDN), un fallo de internet degradaba la aplicación a un estado inservible:
+
+- **Sin Tailwind** → la interfaz pierde por completo su hoja de estilos (layout roto, ilegible).
+- **Sin jsPDF / AutoTable** → falla la generación e impresión del reporte semanal.
+- **Sin fuentes remotas** → saltos de tipografía y de layout (CLS).
+
+Al internalizar las dependencias, el arranque es además **determinista y reproducible**: la versión de cada librería queda congelada en el repositorio, inmune a cambios o caídas del CDN.
+
+**Implementación.**
+
+1. **Vendor local** — `ui/vendor/` contiene `tailwindcss.js` (Play CDN alojado localmente), `jspdf.umd.min.js` (2.5.1) y `jspdf.plugin.autotable.min.js` (3.8.2). Los cinco HTML referencian estas rutas locales con cache-busting (`?v=17`); ningún `<script>`/`<link>` apunta a `cdn.tailwindcss.com` ni a `cdnjs.cloudflare.com`.
+2. **Tipografía del sistema** — la pila de fuentes en la config de Tailwind (`famex-ui.js`) pasó a `system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`, eliminando cualquier dependencia de Google Fonts. Se usa la fuente nativa del SO, sin descargas.
+3. **Limpieza** — se eliminó `ui/js/chart.min.js`, un archivo huérfano (no referenciado) que además contenía URLs externas incrustadas.
+4. **Reaprovisionamiento** — `ui/vendor/descargar_dependencias.py` (y su wrapper `descargar.bat`) descarga/repuebla el vendor ejecutándose **una sola vez en una máquina con internet**, con espejos de respaldo (cdnjs → jsDelivr → unpkg). Es la única acción que requiere red, y solo durante el aprovisionamiento inicial, nunca en tiempo de ejecución.
+
+> **Regla de mantenimiento:** cualquier librería de terceros que se agregue en el futuro **debe** vendorizarse en `ui/vendor/` y referenciarse localmente. No se permiten etiquetas `<script>`/`<link>` ni `@import` que apunten a dominios externos en el frontend. Enlaces de navegación (p. ej. el GitHub del autor en el modal "Acerca del Sistema") sí están permitidos: son destinos que abre el usuario, no recursos que la app cargue.
 
 ---
 

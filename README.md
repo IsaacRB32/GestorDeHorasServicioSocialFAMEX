@@ -34,11 +34,13 @@ Detalle completo de visión, módulos y flujos en [`docs/ARCHITECTURE.md`](docs/
 **Base de datos**
 - **SQLite local** — archivo plano en `data/asistencias.db`, creado automáticamente al arranque. No requiere servidor.
 
-**Frontend (estático, sin build step)**
+**Frontend (estático, sin build step, _offline-first_)**
 - HTML5 vanilla — 5 páginas independientes (`login`, `index`, `prestadores`, `seguimiento`, `analitica`)
 - JavaScript clásico (sin framework, sin bundler) — núcleo compartido `ui/js/famex-ui.js` + un módulo por vista (`app.js`, `prestadores.js`, `seguimiento.js`, `analitica.js`)
-- [Tailwind CSS](https://tailwindcss.com/) vía CDN (`https://cdn.tailwindcss.com`) — utilidad de estilo
-- [jsPDF 2.5.1](https://github.com/parallax/jsPDF) + `jspdf-autotable 3.8.2` — generación e **impresión** cliente del PDF semanal (`autoPrint` + apertura en pestaña, ya no descarga automática)
+- **Todas las librerías se sirven localmente desde `ui/vendor/`** (sin CDNs): Tailwind CSS, jsPDF y jsPDF-AutoTable. El sistema **no realiza ninguna petición a servidores externos** (ver §8.1 _Arquitectura Offline-First_).
+- Tailwind CSS (Play CDN, alojado en `ui/vendor/tailwindcss.js`) — utilidad de estilo; la configuración de tema vive en `ui/js/famex-ui.js`
+- jsPDF 2.5.1 + jsPDF-AutoTable 3.8.2 (`ui/vendor/`) — generación e **impresión** cliente del PDF semanal (impresión vía iframe oculto, ya no descarga automática)
+- Tipografía: **pila 100 % del sistema operativo** (`system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, …`); sin Google Fonts ni descargas externas de fuentes
 - `@media print` nativo — hoja de firmas optimizada para impresión carta vertical
 
 ---
@@ -130,13 +132,19 @@ GestorDeHorasServicioSocialFAMEX/
 │   ├── seguimiento.html          # Calendario mensual editable + calculador manual
 │   ├── analitica.html            # Hoja de firmas imprimible
 │   ├── js/
-│   │   ├── famex-ui.js           # Núcleo: tema Tailwind, apiFetch, redondearHoras, <famex-sidebar>
+│   │   ├── famex-ui.js           # Núcleo: tema Tailwind, apiFetch, redondearHoras, modal "Acerca del Sistema", <famex-sidebar>
 │   │   ├── app.js                # Dashboard: upload, tabla de estado y PDF semanal
 │   │   ├── prestadores.js        # Lógica de la vista Directorio
 │   │   ├── seguimiento.js        # Lógica del calendario de Expedientes
-│   │   ├── analitica.js          # Lógica de la hoja de firmas
-│   │   └── chart.min.js          # Chart.js offline (dependencia opcional)
-│   ├── css/style.css             # CSS auxiliar (Tailwind viene por CDN)
+│   │   └── analitica.js          # Lógica de la hoja de firmas
+│   ├── vendor/                   # Librerías locales (OFFLINE-FIRST, sin CDNs). Ver §8.1
+│   │   ├── tailwindcss.js        # Tailwind CSS (Play CDN alojado localmente)
+│   │   ├── jspdf.umd.min.js      # jsPDF 2.5.1
+│   │   ├── jspdf.plugin.autotable.min.js  # jsPDF-AutoTable 3.8.2
+│   │   ├── descargar_dependencias.py      # Descarga/repuebla el vendor (ejecutar una vez con internet)
+│   │   ├── descargar.bat         # Wrapper Windows (doble clic) del descargador
+│   │   └── LEEME.md              # Instrucciones del vendor
+│   ├── css/style.css             # CSS auxiliar (base, anti-CLS del sidebar, impresión)
 │   └── assets/                   # Imágenes (login background)
 │
 └── data/                         # Generado en runtime (no versionado)
@@ -188,6 +196,22 @@ Explicación detallada de cada capa en [`docs/ARCHITECTURE.md`](docs/ARCHITECTUR
 
 ## 8. Novedades recientes (features)
 
+### 8.1. Arquitectura Offline-First (sin dependencias externas)
+
+El sistema está diseñado para distribuirse como un **ejecutable de escritorio (`.exe`)** y operar en entornos **sin conexión a internet o _air-gapped_** (equipos aislados por política de seguridad, casetas de la feria sin WiFi, cortes de red, etc.). Un sistema de control de horas de servicio social debe seguir funcionando aunque la red falle: si la UI dependiera de CDNs, un corte de internet dejaría la interfaz **sin estilos (Tailwind), sin generación de reportes (jsPDF) y sin íconos/fuentes**, inutilizando la herramienta justo cuando se necesita.
+
+Por esa razón se eliminó **toda** dependencia de servidores externos y se adoptó una estrategia _vendor_ local:
+
+- **Librerías locales en `ui/vendor/`**: `tailwindcss.js`, `jspdf.umd.min.js` y `jspdf.plugin.autotable.min.js` se sirven desde el propio backend. Ningún `<script>`/`<link>` apunta ya a `cdn.tailwindcss.com` ni a `cdnjs.cloudflare.com`.
+- **Tipografía del sistema**: la pila de fuentes pasó a `system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, …` (configurada en `famex-ui.js`), eliminando cualquier llamada a Google Fonts. Se renderiza con la fuente nativa del SO, idéntica en Windows/macOS/Linux sin descargas.
+- **Limpieza**: se eliminó el archivo huérfano `ui/js/chart.min.js` (no referenciado y que además contenía URLs externas incrustadas).
+- **Reaprovisionamiento**: la carpeta trae un descargador (`descargar_dependencias.py` / `descargar.bat`) que, ejecutado **una sola vez en una máquina con internet**, puebla el `vendor/` con espejos de respaldo (cdnjs → jsDelivr → unpkg). Instrucciones en [`ui/vendor/LEEME.md`](ui/vendor/LEEME.md).
+
+**Verificación**: con el WiFi desconectado, la app debe (1) cargar todos los estilos y (2) generar/imprimir el PDF del Dashboard sin errores de red en la consola. Detalle arquitectónico en [`docs/ARCHITECTURE.md §4.7`](docs/ARCHITECTURE.md).
+
+### 8.2. Otras novedades
+
+- **Modal "Acerca del Sistema"**: como el `.exe` no expone el README, el pie del menú lateral abre un modal (en `famex-ui.js`) con la autoría, el carácter de **donación a la FAMEX** y los canales de contacto/soporte.
 - **Respaldo y restauración de la BD** (`app/api/routers/backup.py`): `GET /api/backup/exportar` descarga una copia íntegra (`sqlite3 backup()`, WAL-safe) y `POST /api/backup/importar` valida y reemplaza la BD de forma atómica (con copia `.pre_import.bak` y `bootstrap()`). UI en el Dashboard → sección **Mantenimiento / Respaldos**. Detalle en [`docs/API.md`](docs/API.md) y [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 - **Horas obligatorias dinámicas**: el progreso, la meta mostrada y el umbral de baja en Expedientes usan `prestadores.horas_obligatorias` (devuelto por `/api/seguimiento-datos`), ya no `480` hard-codeado. Soporta 600 h, etc.
 - **Alias de prestadores**: nombre formal limpio con fallback al nombre del checador; se imprime en hoja de firmas y reportes. Ver [`docs/BUSINESS_LOGIC.md §10`](docs/BUSINESS_LOGIC.md).
