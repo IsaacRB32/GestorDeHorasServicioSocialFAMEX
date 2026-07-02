@@ -13,6 +13,11 @@ El sistema es una **aplicación monolítica local** que corre como un único pro
 
 No hay separación física entre cliente y servidor, ni proxy reverso, **ni CDN**: todo —incluidas las librerías de terceros (Tailwind, jsPDF)— se sirve desde el mismo `uvicorn` en el mismo host. Esto hace al sistema **Offline-First**: funciona íntegramente sin conexión a internet, condición necesaria para empaquetarlo como ejecutable de escritorio (ver §4.7).
 
+**Dos formas de arranque, un mismo proceso:**
+
+- **Desarrollo** — `uvicorn main:app --reload` (o `python lanzador.py`), rutas relativas al repositorio.
+- **Distribución** — **ejecutable único `.exe`** cuyo entrypoint es `lanzador.py`: arranca `uvicorn` de forma programática, abre el navegador automáticamente en `http://127.0.0.1:8000` y gestiona el cierre limpio. Se compila con PyInstaller (ver §4.8 y el manual [`EMPAQUETADO.md`](EMPAQUETADO.md)). El usuario final **no instala Python ni dependencias**: hace doble clic.
+
 ```
 ┌──────────────────────────────────────────────────────┐
 │                  Navegador (cliente)                 │
@@ -40,6 +45,8 @@ No hay separación física entre cliente y servidor, ni proxy reverso, **ni CDN*
     │  data/sesiones.json   │   ← sesiones persistidas (auth)
     └────────────────────┘
 ```
+
+> En el `.exe`, la carpeta `data/` (escribible) vive **junto al ejecutable**, no dentro del bundle temporal de PyInstaller — ver §4.8.
 
 ---
 
@@ -227,6 +234,29 @@ Al internalizar las dependencias, el arranque es además **determinista y reprod
 4. **Reaprovisionamiento** — `ui/vendor/descargar_dependencias.py` (y su wrapper `descargar.bat`) descarga/repuebla el vendor ejecutándose **una sola vez en una máquina con internet**, con espejos de respaldo (cdnjs → jsDelivr → unpkg). Es la única acción que requiere red, y solo durante el aprovisionamiento inicial, nunca en tiempo de ejecución.
 
 > **Regla de mantenimiento:** cualquier librería de terceros que se agregue en el futuro **debe** vendorizarse en `ui/vendor/` y referenciarse localmente. No se permiten etiquetas `<script>`/`<link>` ni `@import` que apunten a dominios externos en el frontend. Enlaces de navegación (p. ej. el GitHub del autor en el modal "Acerca del Sistema") sí están permitidos: son destinos que abre el usuario, no recursos que la app cargue.
+
+### 4.8. Empaquetado como ejecutable y persistencia bajo PyInstaller (`sys._MEIPASS`)
+
+**Decisión:** el sistema se distribuye como un **ejecutable único (`.exe`)** cuyo entrypoint es `lanzador.py`, compilado con **PyInstaller** (`--onefile`). El usuario final no instala Python ni dependencias: hace doble clic, el servidor arranca y el navegador se abre solo.
+
+**El problema de las rutas al congelar.** En modo `--onefile`, PyInstaller **descomprime todos los recursos empaquetados en un directorio temporal** apuntado por `sys._MEIPASS`, que se **elimina cuando el programa se cierra**. Además, en ese modo `__file__` deja de ser una ruta del repositorio y apunta dentro de ese temporal. La configuración original derivaba `BASE_DIR` de `__file__`; congelada tal cual, esto tendría dos consecuencias graves:
+
+1. La BD SQLite (`asistencias.db`), las sesiones (`sesiones.json`) y los respaldos se escribirían dentro de `sys._MEIPASS` → **se perderían íntegramente en cada cierre** de la aplicación. Un gestor de horas que olvida todo al apagarse es inservible.
+2. El directorio temporal puede ser de solo lectura o quedar en un volátil, provocando errores de escritura de SQLite.
+
+**Solución — `config.py` consciente del modo congelado.** `app/core/config.py` detecta `getattr(sys, "frozen", False)` y separa recursos de solo lectura de datos escribibles:
+
+| | Modo desarrollo | Modo congelado (`.exe`) |
+|---|---|---|
+| **Frontend** (`ui/`, solo lectura) | `BASE_DIR/ui` (repo) | **`sys._MEIPASS/ui`** (extraído del bundle) |
+| **Datos** (`data/`, escribible) | `BASE_DIR/data` (repo) | **`os.path.dirname(sys.executable)/data`** — junto al `.exe`, **persistente** |
+| **Override** | `FAMEX_DATA_DIR` | `FAMEX_DATA_DIR` |
+
+Así, el frontend viaja **dentro** del ejecutable (inmutable, empaquetado con `--add-data "ui;ui"`), mientras que la carpeta `data/` se materializa **al lado** del `.exe` y sobrevive a cada ejecución. `config.BUNDLED_DATA_DIR` expone además la ubicación de una **BD semilla** opcional empaquetada (`--add-data "data;data"`); en el primer arranque `lanzador.py` la copia a la carpeta escribible si no existe una BD previa. Si no hay semilla, `bootstrap()` crea la BD nueva automáticamente.
+
+**Retrocompatibilidad:** en modo desarrollo el comportamiento es idéntico al anterior; la rama `frozen` solo se activa dentro del `.exe`. El cambio es puramente aditivo y no afecta a `db_config.py`, `security.py` ni `backup.py`, que ya derivaban todas sus rutas escribibles de `config.DATA_DIR` (centralización que hizo trivial esta adaptación).
+
+> Manual de compilación completo (comando PyInstaller, `--hidden-import` de uvicorn, distribución y troubleshooting) en [`EMPAQUETADO.md`](EMPAQUETADO.md).
 
 ---
 

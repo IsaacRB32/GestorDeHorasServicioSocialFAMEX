@@ -72,6 +72,16 @@ pip install -r requirements.txt
 
 ### Arranque del servidor
 
+**Opción A — Lanzador de escritorio (recomendado, igual que el `.exe`):**
+
+```bash
+python lanzador.py
+```
+
+Arranca uvicorn, **abre el navegador automáticamente** en `http://127.0.0.1:8000` y gestiona el cierre limpio (`Ctrl+C` o cerrar la ventana). Es el mismo entrypoint que se empaqueta en el ejecutable (ver §11).
+
+**Opción B — uvicorn directo (desarrollo):**
+
 ```bash
 # Modo desarrollo (autoreload)
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
@@ -106,8 +116,10 @@ Detalle de pruebas por endpoint y flujo en [`docs/API.md`](docs/API.md) y [`docs
 ```
 GestorDeHorasServicioSocialFAMEX/
 │
-├── main.py                       # Entrypoint FastAPI: lifespan (bootstrap BD), monta routers y /ui
-├── requirements.txt              # Dependencias Python pinneadas
+├── main.py                       # App FastAPI: lifespan (bootstrap BD), monta routers y /ui
+├── lanzador.py                   # Entrypoint de escritorio (.exe): uvicorn programático + abre navegador
+├── requirements.txt              # Dependencias Python (desarrollo)
+├── requirements_dist.txt         # Dependencias mínimas de DISTRIBUCIÓN (producción/.exe)
 ├── README.md                     # Este archivo (hub de documentación)
 │
 ├── app/                          # Backend (lógica del servidor)
@@ -147,8 +159,12 @@ GestorDeHorasServicioSocialFAMEX/
 │   ├── css/style.css             # CSS auxiliar (base, anti-CLS del sidebar, impresión)
 │   └── assets/                   # Imágenes (login background)
 │
-└── data/                         # Generado en runtime (no versionado)
-    ├── asistencias.db            # BD SQLite
+├── docs/                         # Documentación modular (ver §5)
+│   └── EMPAQUETADO.md            # Manual de compilación del .exe con PyInstaller
+│
+└── data/                         # Datos ESCRIBIBLES en runtime (no versionado)
+    ├── asistencias.db            # BD SQLite (fuente de verdad; en el .exe vive junto al ejecutable)
+    ├── sesiones.json             # Sesiones persistidas (sobreviven reinicios)
     └── (sin *.xlsx)              # Carga EFÍMERA: los Excel se procesan en memoria y NO se archivan (ver BUSINESS_LOGIC.md §12)
 ```
 
@@ -165,6 +181,7 @@ Explicación detallada de cada capa en [`docs/ARCHITECTURE.md`](docs/ARCHITECTUR
 | [`docs/DATABASE.md`](docs/DATABASE.md) | Esquema completo de `prestadores`, `registros`, `justificaciones`. Relaciones, índices, migraciones idempotentes (`ALTER TABLE` defensivo). |
 | [`docs/API.md`](docs/API.md) | Catálogo de endpoints REST con método, payload, respuesta y ejemplo `curl` por cada uno. |
 | [`docs/FRONTEND.md`](docs/FRONTEND.md) | Propósito y flujos de cada página HTML, dependencia con endpoints, comportamiento JS, particularidades del PDF jsPDF y de la impresión `@media print`. |
+| [`docs/EMPAQUETADO.md`](docs/EMPAQUETADO.md) | **Manual de compilación del ejecutable** (`.exe`) con PyInstaller: prerrequisitos, comando `--add-data` de `ui/` y `data/`, `--hidden-import` de uvicorn, distribución y troubleshooting. |
 
 ---
 
@@ -176,7 +193,7 @@ Explicación detallada de cada capa en [`docs/ARCHITECTURE.md`](docs/ARCHITECTUR
   - parte decimal `≤ 0.15` → **piso** (`floor`)
   - parte decimal `0.16 – 0.65` → **media hora** (`entero + 0.5`)
   - parte decimal `> 0.65` → **techo** (`entero + 1`)
-  - El cliente (`ui/js/app.js::redondearHoras`) replica exactamente el algoritmo para mantener coherencia BD ↔ PDF.
+  - El cliente (`ui/js/famex-ui.js::window.redondearHoras`) replica exactamente el algoritmo para mantener coherencia BD ↔ PDF.
 - **Meta de horas**: `480 h` por prestador por defecto (`horas_obligatorias` en `prestadores`).
 - **Ingesta Excel idempotente**: todas las inserciones usan `INSERT OR REPLACE` sobre la restricción `UNIQUE(id_checador, fecha)` para permitir re‑subir el mismo reporte sin duplicados ni romper FKs.
 - **Autenticación**: SHA‑256 de la contraseña, validación contra hash embebido, generación de token de 64 hex chars (`secrets.token_hex(32)`), **almacenado en memoria** (`_sesiones_activas`) con expiración **8 horas** (28 800 s). Los tokens se pierden al reiniciar el servidor.
@@ -190,7 +207,7 @@ Explicación detallada de cada capa en [`docs/ARCHITECTURE.md`](docs/ARCHITECTUR
 - **Departamentos canónicos** (sin acentos, mayúsculas): `LOGISTICA`, `OPERACIONES`, `COMERCIAL`, `PUBLICIDAD`, `RELACIONES PUBLICAS`, `ADQUISICIONES`, `General`. La normalización ocurre al iniciar el servidor (`_normalizar_deptos_existentes` en `main.py`) y en cada migración histórica.
 - **Fechas**: `YYYY-MM-DD` (ISO‑8601) en BD y API.
 - **Sin framework de testing**: validación se hace manualmente vía la UI o `curl` contra los endpoints.
-- **Sin variables de entorno**: rutas, credenciales y parámetros están embebidos (es una herramienta interna local).
+- **Configuración por entorno (con defaults seguros)**: los parámetros clave admiten override por variable de entorno (`FAMEX_DATA_DIR`, `FAMEX_ADMIN_HASH`, `FAMEX_ADMIN_USER`, `FAMEX_TOKEN_TTL`, `FAMEX_HOST`/`FAMEX_PORT`, …); si no se definen, se usan defaults embebidos válidos para el uso local mono-usuario.
 
 ---
 
@@ -216,7 +233,7 @@ Por esa razón se eliminó **toda** dependencia de servidores externos y se adop
 - **Horas obligatorias dinámicas**: el progreso, la meta mostrada y el umbral de baja en Expedientes usan `prestadores.horas_obligatorias` (devuelto por `/api/seguimiento-datos`), ya no `480` hard-codeado. Soporta 600 h, etc.
 - **Alias de prestadores**: nombre formal limpio con fallback al nombre del checador; se imprime en hoja de firmas y reportes. Ver [`docs/BUSINESS_LOGIC.md §10`](docs/BUSINESS_LOGIC.md).
 - **Anomalías del checador** (`requiere_revision`): celdas que no son un par exacto Entrada/Salida se marcan y resaltan en ámbar en Expedientes para corrección manual. Ver [`docs/BUSINESS_LOGIC.md §11`](docs/BUSINESS_LOGIC.md).
-- **PDF semanal se imprime** (no se descarga): `generarPDF` usa `doc.autoPrint()` + apertura en pestaña, coherente con la hoja de firmas.
+- **PDF semanal se imprime** (no se descarga): `generarPDF` usa impresión vía iframe oculto, coherente con la hoja de firmas.
 - **UI sin alertas nativas**: todas las notificaciones/confirmaciones usan los modales `window.famexAlert` / `window.famexConfirm` (en `famex-ui.js`), unificados con el diseño FAMEX.
 - **Hoja de firmas con acumulado temporal (time-travel)**: `GET /api/registro-firmas?fecha_inicio&fecha_fin` devuelve `horas_semana` (`BETWEEN`) y `horas_acumuladas` (`<= fecha_fin`), y la tabla imprime dos columnas (`Hrs Sem.` / `Acumulado`). Un reporte de una semana pasada muestra el acumulado correcto a esa fecha.
 - **Selectores rápidos** de Mes/Año (Expedientes) y de Semana **agrupada por mes** (Analítica): dropdowns Tailwind puros, sin inputs nativos.
@@ -251,3 +268,41 @@ Proyecto desarrollado originalmente por **Isaac (IsaacRB32)**.
 > o necesitas soporte, puedes contactar al autor por cualquiera de los medios anteriores.
 
 <p align="center"><sub>FAMEX Control · Gestión de Horas de Servicio Social · Desarrollado por <b>IsaacRB32</b></sub></p>
+
+---
+
+## 11. Despliegue como ejecutable de escritorio (`.exe`)
+
+El sistema está preparado para distribuirse como un **ejecutable único de un solo clic**, sin necesidad de que el usuario final instale Python ni dependencias. Este es el modelo de despliegue objetivo (complementa la [Arquitectura Offline-First §8.1](#81-arquitectura-offline-first-sin-dependencias-externas)).
+
+### 11.1. Componentes del empaquetado
+
+| Archivo | Rol |
+|---|---|
+| `lanzador.py` | **Entrypoint del `.exe`.** Siembra la BD inicial en una ruta escribible, arranca `uvicorn` de forma programática, abre el navegador en `http://127.0.0.1:8000` (hilo que espera a que el puerto responda) y gestiona el cierre limpio. |
+| `requirements_dist.txt` | Dependencias mínimas de producción: `fastapi`, `uvicorn`, `pandas`, `openpyxl`, `python-multipart`. |
+| `docs/EMPAQUETADO.md` | Manual paso a paso de compilación con PyInstaller (comando `--add-data`, `--hidden-import`, distribución, troubleshooting). |
+
+### 11.2. Compatibilidad con PyInstaller (persistencia de SQLite)
+
+Cuando PyInstaller congela la aplicación, `sys.frozen` es `True` y los recursos empaquetados se extraen a un **directorio temporal** (`sys._MEIPASS`) que se **borra al cerrar** el programa. Si la BD viviera ahí, **todos los datos se perderían en cada ejecución**.
+
+Para evitarlo, `app/core/config.py` distingue ambos modos:
+
+- **Recursos de solo lectura** (frontend `ui/`, incluido `ui/vendor/`) → se leen desde `sys._MEIPASS/ui`, extraídos del propio `.exe`.
+- **Datos escribibles** (`asistencias.db`, `sesiones.json`, respaldos) → se guardan en una carpeta **`data/` junto al ejecutable** (`os.path.dirname(sys.executable)`), **persistente** entre ejecuciones. Se puede reubicar con la variable de entorno `FAMEX_DATA_DIR`.
+
+En modo desarrollo el comportamiento es idéntico al original (rutas relativas al repositorio), por lo que este cambio es **retrocompatible** y transparente. En el primer arranque, `lanzador.py` copia la BD semilla empaquetada a esa carpeta escribible si aún no existe; si no hay semilla, `bootstrap()` crea una BD nueva automáticamente.
+
+> **Respaldo del sistema en producción:** basta con copiar `data/asistencias.db` (junto al `.exe`) o usar *Mantenimiento → Respaldos* dentro de la aplicación.
+
+### 11.3. Compilar
+
+Prueba primero el entrypoint en tu entorno (`python lanzador.py`) y, cuando funcione, sigue el manual completo en **[`docs/EMPAQUETADO.md`](docs/EMPAQUETADO.md)**. El comando esencial:
+
+```bash
+pip install pyinstaller
+pyinstaller --onefile --name FAMEX-Control --add-data "ui;ui" --add-data "data;data" lanzador.py
+```
+
+(en el manual está la versión completa con los `--hidden-import` de uvicorn; el separador de `--add-data` es `;` en Windows y `:` en Linux/macOS). El resultado queda en `dist/FAMEX-Control.exe`.
