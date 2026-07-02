@@ -194,6 +194,9 @@ Explicación detallada de cada capa en [`docs/ARCHITECTURE.md`](docs/ARCHITECTUR
 - **Anomalías del checador** (`requiere_revision`): celdas que no son un par exacto Entrada/Salida se marcan y resaltan en ámbar en Expedientes para corrección manual. Ver [`docs/BUSINESS_LOGIC.md §11`](docs/BUSINESS_LOGIC.md).
 - **PDF semanal se imprime** (no se descarga): `generarPDF` usa `doc.autoPrint()` + apertura en pestaña, coherente con la hoja de firmas.
 - **UI sin alertas nativas**: todas las notificaciones/confirmaciones usan los modales `window.famexAlert` / `window.famexConfirm` (en `famex-ui.js`), unificados con el diseño FAMEX.
+- **Hoja de firmas con acumulado temporal (time-travel)**: `GET /api/registro-firmas?fecha_inicio&fecha_fin` devuelve `horas_semana` (`BETWEEN`) y `horas_acumuladas` (`<= fecha_fin`), y la tabla imprime dos columnas (`Hrs Sem.` / `Acumulado`). Un reporte de una semana pasada muestra el acumulado correcto a esa fecha.
+- **Selectores rápidos** de Mes/Año (Expedientes) y de Semana **agrupada por mes** (Analítica): dropdowns Tailwind puros, sin inputs nativos.
+- **Carga efímera de Excel**: los `.xlsx` subidos se procesan **en memoria** (`io.BytesIO`) y **no se archivan en disco**; la única fuente de verdad es SQLite. Ver [`docs/BUSINESS_LOGIC.md §12`](docs/BUSINESS_LOGIC.md).
 
 ---
 
@@ -204,3 +207,23 @@ Explicación detallada de cada capa en [`docs/ARCHITECTURE.md`](docs/ARCHITECTUR
 - ~~La fecha hard-codeada `2026-05-{dd}` en `procesador_excel.py`~~ ✅ **Resuelto (Paso 4):** el mes/año se detectan dinámicamente del encabezado `Fecha: DD/MM/YYYY ~ ...` del checador (`_detectar_periodo`), con manejo de semanas que cruzan de mes (`_construir_fecha`); degrada a la fecha actual si no se encuentra.
 - No hay logs persistentes ni auditoría de cambios en `registros`.
 - ~~Tokens de sesión en memoria → cualquier reinicio expulsa a todos~~ ✅ **Resuelto:** sesiones persistidas en `data/sesiones.json` (sobreviven reinicios). La API exige `Bearer` server-side y `apiFetch` lo inyecta.
+
+---
+
+## 10. Créditos y Autoría
+
+Proyecto desarrollado originalmente por **Isaac (IsaacRB32)**.
+
+| | |
+|---|---|
+| **Desarrollador original** | Isaac — `IsaacRB32` |
+| **Repositorio original** | <https://github.com/IsaacRB32/GestorDeHorasServicioSocialFAMEX> |
+| **GitHub** | <https://github.com/IsaacRB32> |
+| **Instagram** | <https://www.instagram.com/isaac_rb32/> |
+| **Contacto / soporte** | isaac.robarron@gmail.com |
+
+> Este código queda **documentado al 100 %** (este `README.md` + la carpeta `docs/`) para
+> facilitar su mantenimiento y sus futuras mejoras. Si tienes dudas técnicas, propuestas
+> o necesitas soporte, puedes contactar al autor por cualquiera de los medios anteriores.
+
+<p align="center"><sub>FAMEX Control · Gestión de Horas de Servicio Social · Desarrollado por <b>IsaacRB32</b></sub></p>

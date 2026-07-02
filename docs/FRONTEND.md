@@ -12,7 +12,7 @@
 | `index.html` | `/ui/index.html` | Dashboard de carga: subir reporte semanal y migrar histórico. | `POST /api/upload-reporte`, `POST /api/migrar-historico`, `GET /api/seguimiento-datos` |
 | `prestadores.html` | `/ui/prestadores.html` | CRUD de prestadores con filtros. | `GET/POST/PUT/DELETE /api/prestadores*`, `GET /api/departamentos` |
 | `seguimiento.html` | `/ui/seguimiento.html` | Expedientes mes a mes con calendario editable y calculadora manual. | `GET /api/seguimiento-datos`, `POST /api/actualizar-dia` |
-| `analitica.html` | `/ui/analitica.html` | Hoja de firmas global, optimizada para impresión. | `GET /api/seguimiento-datos`, `GET /api/analitica-general` |
+| `analitica.html` | `/ui/analitica.html` | Hoja de firmas semanal (Hrs Semana + Acumulado histórico), optimizada para impresión. | `GET /api/registro-firmas`, `GET /api/departamentos` |
 
 Estructura compartida: todas (menos `login`) renderizan el menú lateral con una sola etiqueta `<famex-sidebar></famex-sidebar>`. El Web Component (definido en `famex-ui.js`) genera el `<aside>` con los enlaces a las 4 páginas, resalta el ítem activo automáticamente según el nombre del archivo (`index.html`→Carga, `prestadores.html`→Directorio, etc.) y expone el botón "Cerrar Sesión" (`famexLogout()`). El host lleva la clase `.no-print`, por lo que el sidebar se oculta al imprimir en cualquier vista. Esto elimina la duplicación previa del bloque `<aside>` en los 4 HTML.
 
@@ -118,7 +118,7 @@ Estructura compartida: todas (menos `login`) renderizan el menú lateral con una
 
 ### 5.1. Estructura visual
 
-- **Selector de mes** (`<` Mayo 2026 `>`) con `cambiarMes(±1)`.
+- **Selector de mes** con flechas `‹ ›` (`cambiarMes(±1)`) y un **dropdown Tailwind** al hacer clic en el texto del mes: cabecera con flechas de año y cuadrícula de 12 meses (`toggleSelectorMes` / `saltarAMes`). Se inicializa en el **mes actual del sistema** (`new Date()`), no fijo en mayo 2026.
 - **Filtros:** búsqueda por nombre (`#buscarNombre`), departamento (`#filtroDepto`).
 - **Tarjetas (`#contenedorTarjetas`):** una por prestador, con grid de calendario del mes seleccionado. Cada celda del calendario está coloreada según `estatus`:
   - `Asistencia` → tonos verdes (intensidad según horas).
@@ -165,7 +165,11 @@ Al confirmar: `POST /api/actualizar-dia` con el body correspondiente. Luego se c
 
 ### 6.1. Vista en pantalla
 
-Muestra una tabla con todos los prestadores y sus datos del periodo: nombre, departamento, horas acumuladas, días asistidos, faltas, justificantes, **firma** (columna vacía para llenar a mano).
+Muestra la tabla de firmas de la **semana activa**, agrupada por departamento. Columnas: `No.`, `Nombre` (alias formal), `L M M J V` (marca por día), **`Hrs Sem.`** (horas SOLO de esa semana), **`Acumulado`** (total histórico **al cierre de esa semana**), `Faltas` (de la semana) y `Firma` (columna vacía para llenar a mano).
+
+**Navegación de semana:** flechas `‹ ›` (`cambiarSemana(±1)`) y un **dropdown Tailwind** al hacer clic en el rango de fechas, con las semanas **agrupadas por mes** y su rango exacto (ej. `1 - 5 Ene`); ver `toggleSelectorSemana` / `saltarASemana`. El scroll del dropdown se maneja **solo dentro del contenedor** (no arrastra la página).
+
+**Lógica de acumulación (time-travel):** al cambiar de semana, `cargar()` **re-consulta** `GET /api/registro-firmas?fecha_inicio&fecha_fin`. El backend calcula `horas_semana` (`BETWEEN`) y `horas_acumuladas` (`<= fecha_fin`), de modo que un reporte de una semana pasada muestra el acumulado **correcto a esa fecha**, no el total absoluto de hoy. Ver [`API.md §2.7b`](API.md).
 
 ### 6.2. Comportamiento `@media print`
 

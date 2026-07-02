@@ -36,7 +36,7 @@ No hay separación física entre cliente y servidor, ni proxy reverso, ni CDN: t
              ▼
     ┌────────────────────┐
     │  data/asistencias.db │   ← SQLite (archivo plano)
-    │  data/*.xlsx         │   ← Excels subidos
+    │  data/sesiones.json   │   ← sesiones persistidas (auth)
     └────────────────────┘
 ```
 
@@ -58,7 +58,7 @@ app/
 │       ├── auth.py           # /login, /verificar-sesion
 │       ├── prestadores.py    # CRUD prestadores + /departamentos
 │       ├── registros.py      # /upload-reporte, /migrar-historico, /actualizar-dia
-│       ├── seguimiento.py    # /dashboard/{id}, /seguimiento-datos
+│       ├── seguimiento.py    # /dashboard/{id}, /seguimiento-datos, /registro-firmas
 │       ├── analitica.py      # /analitica-general
 │       └── backup.py        # /backup/exportar, /backup/importar (respaldo BD)
 ├── database/
@@ -74,7 +74,7 @@ app/
 | Módulo | Rol | Funciones clave |
 |---|---|---|
 | `db_config.py` | Bootstrap de SQLite. Crea tablas si no existen, aplica `ALTER TABLE` defensivo para columnas nuevas, crea índices. Expone `obtener_conexion()` con `row_factory = sqlite3.Row`. | `inicializar_bd()`, `obtener_conexion()` |
-| `crud.py` | Operaciones puras sobre la BD. **No** valida reglas de negocio (eso vive en `services/` y en los handlers de `main.py`). | `registrar_prestador`, `guardar_registros_diarios`, `guardar_registros_historicos`, `obtener_resumen_prestador`, `eliminar_prestador`, `actualizar_estatus_dia` |
+| `crud.py` | Operaciones puras sobre la BD (conexión inyectada). **No** valida reglas de negocio (eso vive en `services/` y en los routers de `app/api/routers/`). | `registrar_prestador`, `actualizar_prestador`, `guardar_registros_diarios`, `guardar_registros_historicos`, `obtener_datos_seguimiento`, `obtener_registro_semanal`, `eliminar_prestador`, `actualizar_estatus_dia` |
 | `procesador_excel.py` | Parsea un `.xlsx` con hoja `Registros de asistencia` (formato checador semanal). Retorna `{prestadores, registros}` con horas exactas + redondeadas. | `redondear_horas`, `procesar_reporte_asistencia` |
 | `migrador_historico.py` | Parsea el archivo legacy `SS 2026` (una fila por prestador/mes, columnas = días del mes). Normaliza departamentos y produce registros con `estatus` explícito (`Asistencia` / `Falta` / `Justificante` / `Saldo Inicial`). | `normalizar_departamento`, `procesar_seguimiento_historico` |
 
@@ -88,13 +88,19 @@ ui/
 ├── seguimiento.html   # Calendario mensual editable + calculadora manual
 ├── analitica.html     # Hoja de firmas optimizada para impresión
 ├── js/
-│   ├── app.js         # Lógica del Dashboard (upload + PDF semanal)
-│   └── chart.min.js   # Chart.js offline (cargado offline; uso opcional)
-├── css/style.css      # CSS auxiliar — Tailwind viene por CDN
+│   ├── famex-ui.js    # NÚCLEO compartido: config Tailwind, apiFetch, guardia auth,
+│   │                  #   redondearHoras, badgeDepto, modales famexAlert/Confirm,
+│   │                  #   footer de créditos y Web Component <famex-sidebar>
+│   ├── app.js         # Dashboard: upload, tabla de estado, PDF semanal, respaldos
+│   ├── prestadores.js # Vista Directorio (CRUD + alias)
+│   ├── seguimiento.js # Vista Expedientes (calendario + selector mes/año)
+│   ├── analitica.js   # Hoja de firmas (semana + acumulado + selector de semana)
+│   └── chart.min.js   # Chart.js offline (dependencia opcional)
+├── css/style.css      # CSS base + reserva de layout del sidebar (anti-CLS) + print
 └── assets/            # Imágenes
 ```
 
-Cada HTML es **independiente y autocontenido**: importa Tailwind por CDN, define sus propios scripts inline para las páginas más interactivas (`prestadores.html`, `seguimiento.html`, `analitica.html`) y comparte únicamente `app.js` con el dashboard.
+Cada HTML importa Tailwind por CDN y, justo después, el **núcleo compartido `ui/js/famex-ui.js`** (tema, `apiFetch` con `Bearer`, guardia de auth, `redondearHoras`, modales, `<famex-sidebar>` y footer de créditos). La lógica específica de cada vista vive en su **módulo externo** propio (`app.js`, `prestadores.js`, `seguimiento.js`, `analitica.js`) — ya no hay scripts inline. El menú lateral se renderiza con una sola etiqueta `<famex-sidebar>`.
 
 Detalle de cada página y sus flujos en [`FRONTEND.md`](FRONTEND.md).
 
@@ -111,9 +117,9 @@ Usuario sube reporte.xlsx
 ui/index.html → subirExcel()  [POST /api/upload-reporte, multipart]
         │
         ▼
-main.py::upload_reporte
-   1. guarda archivo en data/<file>
-   2. procesador_excel.procesar_reporte_asistencia(ruta)
+routers/registros.py::upload_reporte
+   1. lee el .xlsx ENTERO en memoria (io.BytesIO) — NO se escribe a disco
+   2. procesador_excel.procesar_reporte_asistencia(buffer)
         → {prestadores: [...], registros: [...]}
    3. por cada prestador → crud.registrar_prestador (INSERT, ignora si existe)
    4. crud.guardar_registros_diarios(registros)
@@ -124,7 +130,7 @@ main.py::upload_reporte
 respuesta {mensaje, procesados, tabla_pdf}
         │
         ▼
-ui/js/app.js → guarda tablaPDFData, muestra botón "Descargar Resumen PDF",
+ui/js/app.js → guarda tablaPDFData, muestra botón "Imprimir Resumen Semanal",
                 refresca tabla de estado vía GET /api/seguimiento-datos
 ```
 
@@ -153,9 +159,9 @@ modal cierra, calendario re-renderiza con color del nuevo estatus
 ui/index.html → migrarHistorico()  [POST /api/migrar-historico]
         │
         ▼
-main.py::migrar_historico
-   1. guarda archivo en data/
-   2. migrador_historico.procesar_seguimiento_historico(ruta)
+routers/registros.py::migrar_historico
+   1. lee el .xlsx en memoria (io.BytesIO) — NO se escribe a disco
+   2. migrador_historico.procesar_seguimiento_historico(buffer)
         → recorre fila por fila, mapea columnas día por día,
           distingue Asistencia / Falta (X/N) / Justificante (J/P) / Saldo Inicial
    3. por cada prestador → crud.registrar_prestador
@@ -209,6 +215,7 @@ La función `redondear_horas` existe **dos veces**: una en `procesador_excel.py`
 | POST | `/api/actualizar-dia` | `routers/registros.py::actualizar_dia` |
 | GET | `/api/dashboard/{id}` | `routers/seguimiento.py::dashboard` |
 | GET | `/api/seguimiento-datos` | `routers/seguimiento.py::seguimiento_datos` |
+| GET | `/api/registro-firmas` | `routers/seguimiento.py::registro_firmas` (semana + acumulado) |
 | GET | `/api/analitica-general` | `routers/analitica.py::analitica` |
 | GET | `/api/prestadores-lista` | `routers/prestadores.py::listar` |
 | POST | `/api/prestadores` | `routers/prestadores.py::crear` |

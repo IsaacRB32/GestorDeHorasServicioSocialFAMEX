@@ -223,6 +223,80 @@
     'analitica.html': 'analitica',
   };
 
+  // ====================================================================
+  //  MODAL "ACERCA DEL SISTEMA / DESARROLLADOR"
+  //  El sistema se distribuye como .exe: los usuarios finales nunca ven el
+  //  README. Este modal expone en la GUI la autoria, el caracter de DONACION
+  //  del sistema y los canales de contacto para soporte / futuras mejoras.
+  //  API global:  famexAbout()  abre  ·  famexAboutCerrar()  cierra.
+  // ====================================================================
+  function _famexAboutEsc(e) { if (e.key === 'Escape') window.famexAboutCerrar(); }
+
+  function _famexAboutEl() {
+    var m = document.getElementById('famexAbout');
+    if (m) return m;
+    m = document.createElement('div');
+    m.id = 'famexAbout';
+    m.className = 'no-print fixed inset-0 z-[110] hidden items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4';
+    // Cerrar al hacer clic fuera de la tarjeta.
+    m.addEventListener('click', function (e) { if (e.target === m) window.famexAboutCerrar(); });
+
+    var GH = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.58 2 12.25c0 4.53 2.87 8.37 6.84 9.73.5.1.68-.22.68-.49 0-.24-.01-.87-.01-1.71-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.62.07-.62 1 .07 1.53 1.06 1.53 1.06.89 1.57 2.34 1.12 2.91.85.09-.66.35-1.12.63-1.38-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05a9.36 9.36 0 015 0c1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9 0 1.37-.01 2.47-.01 2.81 0 .27.18.6.69.49A10.02 10.02 0 0022 12.25C22 6.58 17.52 2 12 2z"/></svg>';
+    var IG = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2.5" y="2.5" width="19" height="19" rx="5.5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/></svg>';
+    var REPO = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9-9h13.5A2.25 2.25 0 0121 5.25v13.5A2.25 2.25 0 0118.75 21H5.25A2.25 2.25 0 013 18.75V5.25A2.25 2.25 0 015.25 3z"/></svg>';
+
+    function fila(href, icon, titulo, sub) {
+      return '<a href="' + href + '" target="_blank" rel="noopener" ' +
+             'class="flex items-center gap-3 text-sm text-gray-600 hover:text-brand-600 transition group">' +
+               '<span class="w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 group-hover:border-brand-300 group-hover:text-brand-600 transition">' + icon + '</span>' +
+               '<span class="min-w-0"><span class="block font-bold text-gray-700 group-hover:text-brand-700">' + titulo + '</span>' +
+               '<span class="block text-xs text-gray-400 truncate">' + sub + '</span></span>' +
+             '</a>';
+    }
+
+    m.innerHTML =
+      '<div class="bg-white rounded-2xl shadow-2xl w-[520px] max-w-[95vw] max-h-[92vh] overflow-y-auto text-left">' +
+        '<div class="relative bg-gradient-to-br from-ink-800 to-ink-900 px-7 pt-7 pb-6 rounded-t-2xl text-white">' +
+          '<button type="button" onclick="famexAboutCerrar()" aria-label="Cerrar" ' +
+            'class="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10 transition text-2xl leading-none">&times;</button>' +
+          '<h3 class="text-xl font-black tracking-wide">Acerca de este Sistema</h3>' +
+          '<p class="text-[13px] text-brand-300 font-semibold mt-1">FAMEX Control &middot; Gestion de Horas de Servicio Social</p>' +
+        '</div>' +
+        '<div class="px-7 py-6 space-y-5">' +
+          '<p class="text-sm text-gray-600 leading-relaxed">' +
+            'Este sistema fue <b class="text-gray-800">desarrollado y entregado como una donacion a la FAMEX</b> por el ' +
+            'desarrollador <b class="text-gray-800">Isaac Rojas Barron</b>, con el proposito de fortalecer y profesionalizar ' +
+            'la gestion del servicio social de la feria. El codigo fuente se entrega <b class="text-gray-800">documentado al 100&nbsp;%</b>, ' +
+            'de modo que la organizacion pueda mantenerlo y realizar futuras mejoras con total autonomia.' +
+          '</p>' +
+          '<div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">' +
+            fila('https://github.com/IsaacRB32/GestorDeHorasServicioSocialFAMEX', REPO, 'Repositorio original', 'github.com/IsaacRB32/GestorDeHorasServicioSocialFAMEX') +
+            fila('https://github.com/IsaacRB32', GH, 'GitHub del desarrollador', 'github.com/IsaacRB32') +
+            fila('https://www.instagram.com/isaac_rb32/', IG, 'Instagram', '@isaac_rb32') +
+          '</div>' +
+          '<div class="bg-brand-50 border border-brand-200 rounded-xl p-4 text-center">' +
+            '<p class="text-[11px] font-black uppercase tracking-wider text-brand-700 mb-1">Contacto para soporte o futuras mejoras</p>' +
+            '<a href="mailto:isaac.robarron@gmail.com" class="text-sm font-black text-brand-700 hover:text-brand-900 break-all transition">isaac.robarron@gmail.com</a>' +
+          '</div>' +
+          '<p class="text-center text-[11px] text-gray-400 pt-1">Desarrollado con dedicacion por <b class="text-gray-500">Isaac Rojas Barron (IsaacRB32)</b></p>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(m);
+    return m;
+  }
+
+  window.famexAbout = function () {
+    var m = _famexAboutEl();
+    m.classList.remove('hidden');
+    m.classList.add('flex');
+    document.addEventListener('keydown', _famexAboutEsc);
+  };
+  window.famexAboutCerrar = function () {
+    var m = document.getElementById('famexAbout');
+    if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+    document.removeEventListener('keydown', _famexAboutEsc);
+  };
+
   function icono(key) {
     return '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">' + (ICONOS[key] || '') + '</svg>';
   }
@@ -257,7 +331,12 @@
         '<button type="button" onclick="famexLogout()" class="mt-4 w-full py-2.5 px-4 rounded-xl text-sm font-bold text-slate-400 hover:text-white hover:bg-red-600/80 transition-all flex items-center gap-3">' +
           '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"/></svg>' +
           '<span>Cerrar Sesión</span>' +
-        '</button>';
+        '</button>' +
+        '<footer class="mt-3 pt-3 border-t border-white/10 text-center">' +
+          '<button type="button" onclick="famexAbout()" ' +
+             'class="w-full text-[10px] text-slate-500 hover:text-brand-400 transition-colors font-medium tracking-wide">' +
+             'Acerca del Sistema / Desarrollador</button>' +
+        '</footer>';
     }
   }
 

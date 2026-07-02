@@ -74,7 +74,7 @@ curl -X POST http://127.0.0.1:8000/api/verificar-sesion \
 
 ### 2.4. `POST /api/upload-reporte`
 
-**Multipart upload** del reporte semanal del checador (`.xlsx` con hoja `Registros de asistencia`). Persiste prestadores nuevos y registros de horas con `INSERT OR REPLACE`.
+**Multipart upload** del reporte semanal del checador (`.xlsx` con hoja `Registros de asistencia`). Persiste prestadores nuevos y registros de horas con `INSERT OR REPLACE`. **Carga efímera:** el `.xlsx` se lee ENTERO en memoria (`io.BytesIO`) y se pasa a pandas; **no se guarda ningún archivo en disco** (ver [`BUSINESS_LOGIC.md §12`](BUSINESS_LOGIC.md)). Un archivo inválido responde `400`.
 
 **Form field:** `file` (binario .xlsx).
 
@@ -110,7 +110,7 @@ curl -X POST http://127.0.0.1:8000/api/upload-reporte \
 
 ### 2.5. `POST /api/migrar-historico`
 
-**Multipart upload** del archivo legacy `seguimiento.xlsx` (hoja `SS 2026`). Inserta prestadores e ingiere registros multi‑mes con `estatus` explícito.
+**Multipart upload** del archivo legacy `seguimiento.xlsx` (hoja `SS 2026`). Inserta prestadores e ingiere registros multi‑mes con `estatus` explícito. **Carga efímera:** se procesa en memoria (`io.BytesIO`), sin escribir a disco; archivo inválido → `400`.
 
 **Form field:** `file` (binario .xlsx).
 
@@ -186,6 +186,42 @@ Implementado con un único `LEFT JOIN` para evitar N+1.
 
 ```bash
 curl http://127.0.0.1:8000/api/seguimiento-datos
+```
+
+---
+
+### 2.7b. `GET /api/registro-firmas`
+
+Alimenta la **Hoja de Firmas** (`analitica.html`) para una semana concreta. Exige los query params `fecha_inicio` y `fecha_fin` (`YYYY-MM-DD`, lunes y viernes de la semana). Por cada prestador devuelve los dos cálculos clave — con **acumulado histórico correcto a esa fecha** (time-travel), no el total absoluto de hoy:
+
+- `horas_semana` = `SUM(horas_trabajadas)` con `fecha BETWEEN fecha_inicio AND fecha_fin`.
+- `horas_acumuladas` = `SUM(horas_trabajadas)` con `fecha <= fecha_fin` (acumulado al **cierre** de esa semana).
+- `faltas` = nº de `Falta` dentro de la semana.
+- `registros` = detalle de la semana (para las celdas Lun–Vie).
+
+**Respuesta 200** (array):
+```json
+[
+  {
+    "id": 1,
+    "nombre": "Alexia Bernal",
+    "nombre_checador": "ALEXIA BERNAL",
+    "departamento": "LOGISTICA",
+    "horas_obligatorias": 480,
+    "horas_semana": 8.0,
+    "horas_acumuladas": 124.5,
+    "faltas": 1,
+    "registros": [
+      { "fecha": "2026-06-22", "horas": 4.0, "estatus": "Asistencia", "requiere_revision": 0 }
+    ]
+  }
+]
+```
+
+Implementado en `crud.obtener_registro_semanal` con una sola agregación `SUM(CASE WHEN ...)` (sin N+1). Como `fecha` es TEXT ISO, `BETWEEN`/`<=` comparan correctamente.
+
+```bash
+curl -s -H "$AUTH" "$BASE/api/registro-firmas?fecha_inicio=2026-06-22&fecha_fin=2026-06-26"
 ```
 
 ---
