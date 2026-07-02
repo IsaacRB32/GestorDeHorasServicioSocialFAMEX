@@ -28,7 +28,9 @@
             ink: { 600: '#334155', 700: '#1e293b', 800: '#0f172a', 900: '#0b1220' },
           },
           fontFamily: {
-            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system',
+            // Pila 100% del sistema operativo: sin Google Fonts ni descargas
+            // externas (requisito Offline-First / air-gapped).
+            sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont',
                    'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
           },
           boxShadow: {
